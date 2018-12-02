@@ -73,6 +73,6 @@ final class ItemResolver
 
         $normalizationContext = $resourceMetadata->getGraphqlAttribute('query', 'normalization_context', [], true);
 
-        return $this->normalizer->normalize($item, ItemNormalizer::FORMAT, $normalizationContext);
+        return $this->normalizer->normalize($item, ItemNormalizer::FORMAT, $normalizationContext + $baseNormalizationContext);
     }
 }
