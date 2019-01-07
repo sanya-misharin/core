@@ -136,13 +136,12 @@ final class SerializerPropertyMetadataFactory implements PropertyMetadataFactory
      * - From metadata of the given operation ("collection_operation_name" and "item_operation_name" keys).
      * - From metadata of the current resource.
      *
-     *
      * @return (string[]|null)[]
      */
     private function getEffectiveSerializerGroups(array $options, string $resourceClass): array
     {
         if (isset($options['serializer_groups'])) {
-            return [$options['serializer_groups'], $options['serializer_groups']];
+            return [(array) $options['serializer_groups'], (array) $options['serializer_groups']];
         }
 
         $resourceMetadata = $this->resourceMetadataFactory->create($resourceClass);
@@ -160,12 +159,14 @@ final class SerializerPropertyMetadataFactory implements PropertyMetadataFactory
             $denormalizationContext = $resourceMetadata->getAttribute('denormalization_context');
         }
 
-        return [$normalizationContext['groups'] ?? null, $denormalizationContext['groups'] ?? null];
+        return [
+            isset($normalizationContext['groups']) ? (array) $normalizationContext['groups'] : null,
+            isset($denormalizationContext['groups']) ? (array) $denormalizationContext['groups'] : null,
+        ];
     }
 
     /**
      * Gets the serializer groups defined on a property.
-     *
      *
      * @return string[]
      */
@@ -184,7 +185,6 @@ final class SerializerPropertyMetadataFactory implements PropertyMetadataFactory
 
     /**
      * Gets the serializer groups defined in a resource.
-     *
      *
      * @return string[]
      */
