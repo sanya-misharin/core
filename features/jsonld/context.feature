@@ -27,7 +27,10 @@ Feature: JSON-LD contexts generation
             "description": "https://schema.org/description",
             "dummy": "Dummy/dummy",
             "dummyBoolean": "Dummy/dummyBoolean",
-            "dummyDate": "Dummy/dummyDate",
+            "dummyDate": {
+              "@id": "http://schema.org/DateTime",
+              "@type": "@id"
+            },
             "dummyFloat": "Dummy/dummyFloat",
             "dummyPrice": "Dummy/dummyPrice",
             "relatedDummy": {

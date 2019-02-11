@@ -22,6 +22,8 @@ Feature: Create-Retrieve-Update-Delete
     Then the response status code should be 201
     And the response should be in JSON
     And the header "Content-Type" should be equal to "application/ld+json; charset=utf-8"
+    And the header "Content-Location" should be equal to "/dummies/1"
+    And the header "Location" should be equal to "/dummies/1"
     And the JSON should be equal to:
     """
     {
@@ -135,7 +137,7 @@ Feature: Create-Retrieve-Update-Delete
       "hydra:totalItems": 1,
       "hydra:search": {
         "@type": "hydra:IriTemplate",
-        "hydra:template": "/dummies{?dummyBoolean,relatedDummy.embeddedDummy.dummyBoolean,dummyDate[before],dummyDate[strictly_before],dummyDate[after],dummyDate[strictly_after],relatedDummy.dummyDate[before],relatedDummy.dummyDate[strictly_before],relatedDummy.dummyDate[after],relatedDummy.dummyDate[strictly_after],description[exists],relatedDummy.name[exists],dummyBoolean[exists],relatedDummy[exists],dummyFloat,dummyFloat[],dummyPrice,dummyPrice[],order[id],order[name],order[description],order[relatedDummy.name],order[relatedDummy.symfony],order[dummyDate],dummyFloat[between],dummyFloat[gt],dummyFloat[gte],dummyFloat[lt],dummyFloat[lte],dummyPrice[between],dummyPrice[gt],dummyPrice[gte],dummyPrice[lt],dummyPrice[lte],id,id[],name,alias,description,relatedDummy.name,relatedDummy.name[],relatedDummies,relatedDummies[],dummy,relatedDummies.name,properties[]}",
+        "hydra:template": "/dummies{?dummyBoolean,relatedDummy.embeddedDummy.dummyBoolean,dummyDate[before],dummyDate[strictly_before],dummyDate[after],dummyDate[strictly_after],relatedDummy.dummyDate[before],relatedDummy.dummyDate[strictly_before],relatedDummy.dummyDate[after],relatedDummy.dummyDate[strictly_after],description[exists],relatedDummy.name[exists],dummyBoolean[exists],relatedDummy[exists],dummyFloat,dummyFloat[],dummyPrice,dummyPrice[],order[id],order[name],order[description],order[relatedDummy.name],order[relatedDummy.symfony],order[dummyDate],dummyFloat[between],dummyFloat[gt],dummyFloat[gte],dummyFloat[lt],dummyFloat[lte],dummyPrice[between],dummyPrice[gt],dummyPrice[gte],dummyPrice[lt],dummyPrice[lte],id,id[],name,alias,description,relatedDummy.name,relatedDummy.name[],relatedDummies,relatedDummies[],dummy,relatedDummies.name,relatedDummy.thirdLevel.level,relatedDummy.thirdLevel.level[],relatedDummy.thirdLevel.fourthLevel.level,relatedDummy.thirdLevel.fourthLevel.level[],relatedDummy.thirdLevel.badFourthLevel.level,relatedDummy.thirdLevel.badFourthLevel.level[],relatedDummy.thirdLevel.fourthLevel.badThirdLevel.level,relatedDummy.thirdLevel.fourthLevel.badThirdLevel.level[],properties[]}",
         "hydra:variableRepresentation": "BasicRepresentation",
         "hydra:mapping": [
           {
@@ -409,6 +411,54 @@ Feature: Create-Retrieve-Update-Delete
             "required": false
           },
           {
+            "@type": "IriTemplateMapping",
+            "variable": "relatedDummy.thirdLevel.level",
+            "property": "relatedDummy.thirdLevel.level",
+            "required": false
+          },
+          {
+            "@type": "IriTemplateMapping",
+            "variable": "relatedDummy.thirdLevel.level[]",
+            "property": "relatedDummy.thirdLevel.level",
+            "required": false
+          },
+          {
+            "@type": "IriTemplateMapping",
+            "variable": "relatedDummy.thirdLevel.fourthLevel.level",
+            "property": "relatedDummy.thirdLevel.fourthLevel.level",
+            "required": false
+          },
+          {
+            "@type": "IriTemplateMapping",
+            "variable": "relatedDummy.thirdLevel.fourthLevel.level[]",
+            "property": "relatedDummy.thirdLevel.fourthLevel.level",
+            "required": false
+          },
+          {
+            "@type": "IriTemplateMapping",
+            "variable": "relatedDummy.thirdLevel.badFourthLevel.level",
+            "property": "relatedDummy.thirdLevel.badFourthLevel.level",
+            "required": false
+          },
+          {
+            "@type": "IriTemplateMapping",
+            "variable": "relatedDummy.thirdLevel.badFourthLevel.level[]",
+            "property": "relatedDummy.thirdLevel.badFourthLevel.level",
+            "required": false
+          },
+          {
+            "@type": "IriTemplateMapping",
+            "variable": "relatedDummy.thirdLevel.fourthLevel.badThirdLevel.level",
+            "property": "relatedDummy.thirdLevel.fourthLevel.badThirdLevel.level",
+            "required": false
+          },
+          {
+            "@type": "IriTemplateMapping",
+            "variable": "relatedDummy.thirdLevel.fourthLevel.badThirdLevel.level[]",
+            "property": "relatedDummy.thirdLevel.fourthLevel.badThirdLevel.level",
+            "required": false
+          },
+          {
               "@type": "IriTemplateMapping",
               "variable": "properties[]",
               "property": null,
@@ -426,6 +476,7 @@ Feature: Create-Retrieve-Update-Delete
     {
       "@id": "/dummies/1",
       "name": "A nice dummy",
+      "dummyDate": "2018-12-01 13:12",
       "jsonData": [{
           "key": "value1"
         },
@@ -438,6 +489,7 @@ Feature: Create-Retrieve-Update-Delete
     Then the response status code should be 200
     And the response should be in JSON
     And the header "Content-Type" should be equal to "application/ld+json; charset=utf-8"
+    And the header "Content-Location" should be equal to "/dummies/1"
     And the JSON should be equal to:
     """
     {
@@ -447,7 +499,7 @@ Feature: Create-Retrieve-Update-Delete
       "description": null,
       "dummy": null,
       "dummyBoolean": null,
-      "dummyDate": "2015-03-01T10:00:00+00:00",
+      "dummyDate": "2018-12-01T13:12:00+00:00",
       "dummyFloat": null,
       "dummyPrice": null,
       "relatedDummy": null,
@@ -477,6 +529,7 @@ Feature: Create-Retrieve-Update-Delete
     Then the response status code should be 200
     And the response should be in JSON
     And the header "Content-Type" should be equal to "application/ld+json; charset=utf-8"
+    And the header "Content-Location" should be equal to "/dummies/1"
     And the JSON should be equal to:
     """
     {
@@ -486,7 +539,7 @@ Feature: Create-Retrieve-Update-Delete
       "description": null,
       "dummy": null,
       "dummyBoolean": null,
-      "dummyDate": "2015-03-01T10:00:00+00:00",
+      "dummyDate": "2018-12-01T13:12:00+00:00",
       "dummyFloat": null,
       "dummyPrice": null,
       "relatedDummy": null,

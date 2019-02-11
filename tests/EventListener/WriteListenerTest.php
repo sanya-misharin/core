@@ -13,9 +13,14 @@ declare(strict_types=1);
 
 namespace ApiPlatform\Core\Tests\EventListener;
 
+use ApiPlatform\Core\Api\IriConverterInterface;
 use ApiPlatform\Core\DataPersister\DataPersisterInterface;
 use ApiPlatform\Core\EventListener\WriteListener;
+use ApiPlatform\Core\Metadata\Resource\Factory\ResourceMetadataFactoryInterface;
+use ApiPlatform\Core\Metadata\Resource\ResourceMetadata;
 use ApiPlatform\Core\Tests\Fixtures\TestBundle\Entity\Dummy;
+use ApiPlatform\Core\Tests\Fixtures\TestBundle\Entity\DummyTableInheritance;
+use ApiPlatform\Core\Tests\Fixtures\TestBundle\Entity\DummyTableInheritanceChild;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Event\GetResponseForControllerResultEvent;
@@ -35,8 +40,10 @@ class WriteListenerTest extends TestCase
         $dataPersisterProphecy->supports($dummy)->willReturn(true)->shouldBeCalled();
         $dataPersisterProphecy->persist($dummy)->willReturn($dummy)->shouldBeCalled();
 
-        $request = new Request();
-        $request->attributes->set('_api_resource_class', Dummy::class);
+        $iriConverterProphecy = $this->prophesize(IriConverterInterface::class);
+        $iriConverterProphecy->getIriFromItem($dummy)->willReturn('/dummy/1')->shouldBeCalled();
+
+        $request = new Request([], [], ['_api_resource_class' => Dummy::class]);
 
         $event = new GetResponseForControllerResultEvent(
             $this->prophesize(HttpKernelInterface::class)->reveal(),
@@ -47,9 +54,11 @@ class WriteListenerTest extends TestCase
 
         foreach (['PATCH', 'PUT', 'POST'] as $httpMethod) {
             $request->setMethod($httpMethod);
+            $request->attributes->set(sprintf('_api_%s_operation_name', 'POST' === $httpMethod ? 'collection' : 'item'), strtolower($httpMethod));
 
-            (new WriteListener($dataPersisterProphecy->reveal()))->onKernelView($event);
+            (new WriteListener($dataPersisterProphecy->reveal(), $iriConverterProphecy->reveal()))->onKernelView($event);
             $this->assertSame($dummy, $event->getControllerResult());
+            $this->assertEquals('/dummy/1', $request->attributes->get('_api_write_item_iri'));
         }
     }
 
@@ -66,8 +75,7 @@ class WriteListenerTest extends TestCase
         $dataPersisterProphecy->supports($dummy)->willReturn(true)->shouldBeCalled();
         $dataPersisterProphecy->persist($dummy)->shouldBeCalled();
 
-        $request = new Request();
-        $request->attributes->set('_api_resource_class', Dummy::class);
+        $request = new Request([], [], ['_api_resource_class' => Dummy::class]);
 
         $event = new GetResponseForControllerResultEvent(
             $this->prophesize(HttpKernelInterface::class)->reveal(),
@@ -78,6 +86,7 @@ class WriteListenerTest extends TestCase
 
         foreach (['PATCH', 'PUT', 'POST'] as $httpMethod) {
             $request->setMethod($httpMethod);
+            $request->attributes->set(sprintf('_api_%s_operation_name', 'POST' === $httpMethod ? 'collection' : 'item'), strtolower($httpMethod));
 
             (new WriteListener($dataPersisterProphecy->reveal()))->onKernelView($event);
             $this->assertSame($dummy, $event->getControllerResult());
@@ -98,14 +107,16 @@ class WriteListenerTest extends TestCase
         $dataPersisterProphecy = $this->prophesize(DataPersisterInterface::class);
         $dataPersisterProphecy->supports($dummy)->willReturn(true)->shouldBeCalled();
 
+        $iriConverterProphecy = $this->prophesize(IriConverterInterface::class);
+        $iriConverterProphecy->getIriFromItem($dummy)->willReturn('/dummy/1')->shouldBeCalled();
+
         $dataPersisterProphecy
             ->persist($dummy)
             ->willReturn($dummy2) // Persist is not mutating $dummy, but return a brand new technically unrelated object instead
             ->shouldBeCalled()
         ;
 
-        $request = new Request();
-        $request->attributes->set('_api_resource_class', Dummy::class);
+        $request = new Request([], [], ['_api_resource_class' => Dummy::class]);
 
         foreach (['PATCH', 'PUT', 'POST'] as $httpMethod) {
             $event = new GetResponseForControllerResultEvent(
@@ -116,11 +127,42 @@ class WriteListenerTest extends TestCase
             );
 
             $request->setMethod($httpMethod);
+            $request->attributes->set(sprintf('_api_%s_operation_name', 'POST' === $httpMethod ? 'collection' : 'item'), strtolower($httpMethod));
 
-            (new WriteListener($dataPersisterProphecy->reveal()))->onKernelView($event);
+            (new WriteListener($dataPersisterProphecy->reveal(), $iriConverterProphecy->reveal()))->onKernelView($event);
 
             $this->assertSame($dummy2, $event->getControllerResult());
+            $this->assertEquals('/dummy/1', $request->attributes->get('_api_write_item_iri'));
         }
+    }
+
+    public function testOnKernelViewDoNotCallIriConverterWhenOutputClassDisabled()
+    {
+        $dummy = new Dummy();
+        $dummy->setName('Dummyrino');
+
+        $dataPersisterProphecy = $this->prophesize(DataPersisterInterface::class);
+        $dataPersisterProphecy->supports($dummy)->willReturn(true)->shouldBeCalled();
+
+        $iriConverterProphecy = $this->prophesize(IriConverterInterface::class);
+        $iriConverterProphecy->getIriFromItem($dummy)->shouldNotBeCalled();
+
+        $resourceMetadataFactoryProphecy = $this->prophesize(ResourceMetadataFactoryInterface::class);
+        $resourceMetadataFactoryProphecy->create(Dummy::class)->willReturn(new ResourceMetadata(null, null, null, null, null, ['output_class' => false]));
+
+        $dataPersisterProphecy->persist($dummy)->willReturn($dummy)->shouldBeCalled();
+
+        $request = new Request([], [], ['_api_resource_class' => Dummy::class, '_api_collection_operation_name' => 'post', '_api_output_class' => false]);
+        $request->setMethod('POST');
+
+        $event = new GetResponseForControllerResultEvent(
+            $this->prophesize(HttpKernelInterface::class)->reveal(),
+            $request,
+            HttpKernelInterface::MASTER_REQUEST,
+            $dummy
+        );
+
+        (new WriteListener($dataPersisterProphecy->reveal(), $iriConverterProphecy->reveal(), $resourceMetadataFactoryProphecy->reveal()))->onKernelView($event);
     }
 
     public function testOnKernelViewWithControllerResultAndRemove()
@@ -132,9 +174,11 @@ class WriteListenerTest extends TestCase
         $dataPersisterProphecy->supports($dummy)->willReturn(true)->shouldBeCalled();
         $dataPersisterProphecy->remove($dummy)->shouldBeCalled();
 
-        $request = new Request();
+        $iriConverterProphecy = $this->prophesize(IriConverterInterface::class);
+        $iriConverterProphecy->getIriFromItem($dummy)->shouldNotBeCalled();
+
+        $request = new Request([], [], ['_api_resource_class' => Dummy::class, '_api_item_operation_name' => 'delete']);
         $request->setMethod('DELETE');
-        $request->attributes->set('_api_resource_class', Dummy::class);
 
         $event = new GetResponseForControllerResultEvent(
             $this->prophesize(HttpKernelInterface::class)->reveal(),
@@ -143,7 +187,7 @@ class WriteListenerTest extends TestCase
             $dummy
         );
 
-        (new WriteListener($dataPersisterProphecy->reveal()))->onKernelView($event);
+        (new WriteListener($dataPersisterProphecy->reveal(), $iriConverterProphecy->reveal()))->onKernelView($event);
     }
 
     public function testOnKernelViewWithSafeMethod()
@@ -156,9 +200,11 @@ class WriteListenerTest extends TestCase
         $dataPersisterProphecy->persist($dummy)->shouldNotBeCalled();
         $dataPersisterProphecy->remove($dummy)->shouldNotBeCalled();
 
-        $request = new Request();
+        $iriConverterProphecy = $this->prophesize(IriConverterInterface::class);
+        $iriConverterProphecy->getIriFromItem($dummy)->shouldNotBeCalled();
+
+        $request = new Request([], [], ['_api_resource_class' => Dummy::class, '_api_item_operation_name' => 'head']);
         $request->setMethod('HEAD');
-        $request->attributes->set('_api_resource_class', Dummy::class);
 
         $event = new GetResponseForControllerResultEvent(
             $this->prophesize(HttpKernelInterface::class)->reveal(),
@@ -168,6 +214,32 @@ class WriteListenerTest extends TestCase
         );
 
         (new WriteListener($dataPersisterProphecy->reveal()))->onKernelView($event);
+    }
+
+    public function testOnKernelViewWithPersistFlagOff()
+    {
+        $dummy = new Dummy();
+        $dummy->setName('Dummyrino');
+
+        $dataPersisterProphecy = $this->prophesize(DataPersisterInterface::class);
+        $dataPersisterProphecy->supports($dummy)->shouldNotBeCalled();
+        $dataPersisterProphecy->persist($dummy)->shouldNotBeCalled();
+        $dataPersisterProphecy->remove($dummy)->shouldNotBeCalled();
+
+        $iriConverterProphecy = $this->prophesize(IriConverterInterface::class);
+        $iriConverterProphecy->getIriFromItem($dummy)->shouldNotBeCalled();
+
+        $request = new Request([], [], ['_api_resource_class' => Dummy::class, '_api_item_operation_name' => 'head', '_api_persist' => false]);
+        $request->setMethod('HEAD');
+
+        $event = new GetResponseForControllerResultEvent(
+            $this->prophesize(HttpKernelInterface::class)->reveal(),
+            $request,
+            HttpKernelInterface::MASTER_REQUEST,
+            $dummy
+        );
+
+        (new WriteListener($dataPersisterProphecy->reveal(), $iriConverterProphecy->reveal()))->onKernelView($event);
     }
 
     public function testOnKernelViewWithNoResourceClass()
@@ -180,6 +252,9 @@ class WriteListenerTest extends TestCase
         $dataPersisterProphecy->persist($dummy)->shouldNotBeCalled();
         $dataPersisterProphecy->remove($dummy)->shouldNotBeCalled();
 
+        $iriConverterProphecy = $this->prophesize(IriConverterInterface::class);
+        $iriConverterProphecy->getIriFromItem($dummy)->shouldNotBeCalled();
+
         $request = new Request();
         $request->setMethod('POST');
 
@@ -190,7 +265,31 @@ class WriteListenerTest extends TestCase
             $dummy
         );
 
-        (new WriteListener($dataPersisterProphecy->reveal()))->onKernelView($event);
+        (new WriteListener($dataPersisterProphecy->reveal(), $iriConverterProphecy->reveal()))->onKernelView($event);
+    }
+
+    public function testOnKernelViewWithParentResourceClass()
+    {
+        $dummy = new DummyTableInheritanceChild();
+
+        $dataPersisterProphecy = $this->prophesize(DataPersisterInterface::class);
+        $dataPersisterProphecy->supports($dummy)->willReturn(true)->shouldBeCalled();
+        $dataPersisterProphecy->persist($dummy)->willReturn($dummy)->shouldBeCalled();
+
+        $iriConverterProphecy = $this->prophesize(IriConverterInterface::class);
+        $iriConverterProphecy->getIriFromItem($dummy)->shouldNotBeCalled();
+
+        $request = new Request([], [], ['_api_resource_class' => DummyTableInheritance::class, '_api_item_operation_name' => 'put', '_api_persist' => true]);
+        $request->setMethod('PUT');
+
+        $event = new GetResponseForControllerResultEvent(
+            $this->prophesize(HttpKernelInterface::class)->reveal(),
+            $request,
+            HttpKernelInterface::MASTER_REQUEST,
+            $dummy
+        );
+
+        (new WriteListener($dataPersisterProphecy->reveal(), $iriConverterProphecy->reveal()))->onKernelView($event);
     }
 
     public function testOnKernelViewWithNoDataPersisterSupport()
@@ -203,9 +302,11 @@ class WriteListenerTest extends TestCase
         $dataPersisterProphecy->persist($dummy)->shouldNotBeCalled();
         $dataPersisterProphecy->remove($dummy)->shouldNotBeCalled();
 
-        $request = new Request();
+        $iriConverterProphecy = $this->prophesize(IriConverterInterface::class);
+        $iriConverterProphecy->getIriFromItem($dummy)->shouldNotBeCalled();
+
+        $request = new Request([], [], ['_api_resource_class' => 'Dummy', '_api_collection_operation_name' => 'post']);
         $request->setMethod('POST');
-        $request->attributes->set('_api_resource_class', 'Dummy');
 
         $event = new GetResponseForControllerResultEvent(
             $this->prophesize(HttpKernelInterface::class)->reveal(),
@@ -214,6 +315,6 @@ class WriteListenerTest extends TestCase
             $dummy
         );
 
-        (new WriteListener($dataPersisterProphecy->reveal()))->onKernelView($event);
+        (new WriteListener($dataPersisterProphecy->reveal(), $iriConverterProphecy->reveal()))->onKernelView($event);
     }
 }

@@ -31,6 +31,7 @@ use ApiPlatform\Core\Tests\Fixtures\TestBundle\Entity\Dummy;
 use ApiPlatform\Core\Tests\Fixtures\TestBundle\Entity\RelatedDummy;
 use PHPUnit\Framework\TestCase;
 use Prophecy\Argument;
+use Symfony\Component\HttpFoundation\Exception\SuspiciousOperationException;
 use Symfony\Component\Routing\Exception\RouteNotFoundException;
 use Symfony\Component\Routing\RouterInterface;
 
@@ -96,6 +97,20 @@ class IriConverterTest extends TestCase
 
         $converter = $this->getIriConverter($routerProphecy, null, $itemDataProviderProphecy);
         $converter->getItemFromIri('/users/3');
+    }
+
+    public function testGetItemFromIriWithDateLooksLikeUrl()
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('No route matches "28-01-2018 10:10".');
+
+        $itemDataProviderProphecy = $this->prophesize(ItemDataProviderInterface::class);
+
+        $routerProphecy = $this->prophesize(RouterInterface::class);
+        $routerProphecy->match('28-01-2018 10:10')->willThrow(new SuspiciousOperationException())->shouldBeCalledTimes(1);
+
+        $converter = $this->getIriConverter($routerProphecy, null, $itemDataProviderProphecy);
+        $converter->getItemFromIri('28-01-2018 10:10');
     }
 
     public function testGetItemFromIri()
@@ -297,6 +312,21 @@ class IriConverterTest extends TestCase
         $identifierConverterProphecy->convert('3', Dummy::class)->shouldBeCalled()->willThrow(new InvalidIdentifierException('Item not found for "/users/3".'));
         $converter = $this->getIriConverter($routerProphecy, $routeNameResolverProphecy, null, null, $identifierConverterProphecy);
         $this->assertEquals($converter->getItemFromIri('/users/3', ['fetch_data' => true]), $item);
+    }
+
+    public function testNoIdentifiersException()
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('No identifiers defined for resource of type "\App\Entity\Sample"');
+
+        $routeNameResolverProphecy = $this->prophesize(RouteNameResolverInterface::class);
+        $routerProphecy = $this->prophesize(RouterInterface::class);
+
+        $converter = $this->getIriConverter($routerProphecy, $routeNameResolverProphecy, null);
+
+        $method = new \ReflectionMethod(IriConverter::class, 'generateIdentifiersUrl');
+        $method->setAccessible(true);
+        $method->invoke($converter, [], '\App\Entity\Sample');
     }
 
     /**

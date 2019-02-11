@@ -29,7 +29,7 @@ class ApiResourceTest extends TestCase
         $resource = new ApiResource([
             'accessControl' => 'has_role("ROLE_FOO")',
             'accessControlMessage' => 'You are not foo.',
-            'attributes' => ['foo' => 'bar', 'validation_groups' => ['baz', 'qux']],
+            'attributes' => ['foo' => 'bar', 'validation_groups' => ['baz', 'qux'], 'cache_headers' => ['max_age' => 0, 'shared_max_age' => 0]],
             'collectionOperations' => ['bar' => ['foo']],
             'denormalizationContext' => ['groups' => ['foo']],
             'description' => 'description',
@@ -38,11 +38,16 @@ class ApiResourceTest extends TestCase
             'formats' => ['foo', 'bar' => ['application/bar']],
             'filters' => ['foo', 'bar'],
             'graphql' => ['query' => ['normalization_context' => ['groups' => ['foo', 'bar']]]],
+            'inputClass' => 'Foo',
             'iri' => 'http://example.com/res',
             'itemOperations' => ['foo' => ['bar']],
             'maximumItemsPerPage' => 42,
+            'mercure' => '[\'foo\', object.owner]',
+            'messenger' => true,
             'normalizationContext' => ['groups' => ['bar']],
             'order' => ['foo', 'bar' => 'ASC'],
+            'openapiContext' => ['description' => 'foo'],
+            'outputClass' => 'Bar',
             'paginationClientEnabled' => true,
             'paginationClientItemsPerPage' => true,
             'paginationClientPartial' => true,
@@ -53,7 +58,9 @@ class ApiResourceTest extends TestCase
             'routePrefix' => '/foo',
             'shortName' => 'shortName',
             'subresourceOperations' => [],
+            'swaggerContext' => ['description' => 'bar'],
             'validationGroups' => ['foo', 'bar'],
+            'sunset' => 'Thu, 11 Oct 2018 00:00:00 +0200',
         ]);
 
         $this->assertSame('shortName', $resource->shortName);
@@ -72,9 +79,14 @@ class ApiResourceTest extends TestCase
             'force_eager' => false,
             'formats' => ['foo', 'bar' => ['application/bar']],
             'filters' => ['foo', 'bar'],
+            'input_class' => 'Foo',
             'maximum_items_per_page' => 42,
+            'mercure' => '[\'foo\', object.owner]',
+            'messenger' => true,
             'normalization_context' => ['groups' => ['bar']],
             'order' => ['foo', 'bar' => 'ASC'],
+            'openapi_context' => ['description' => 'foo'],
+            'output_class' => 'Bar',
             'pagination_client_enabled' => true,
             'pagination_client_items_per_page' => true,
             'pagination_client_partial' => true,
@@ -83,7 +95,10 @@ class ApiResourceTest extends TestCase
             'pagination_items_per_page' => 42,
             'pagination_partial' => true,
             'route_prefix' => '/foo',
+            'swagger_context' => ['description' => 'bar'],
             'validation_groups' => ['baz', 'qux'],
+            'cache_headers' => ['max_age' => 0, 'shared_max_age' => 0],
+            'sunset' => 'Thu, 11 Oct 2018 00:00:00 +0200',
         ], $resource->attributes);
     }
 
@@ -105,6 +120,7 @@ class ApiResourceTest extends TestCase
             'route_prefix' => '/whatever',
             'access_control' => "has_role('ROLE_FOO')",
             'access_control_message' => 'You are not foo.',
+            'cache_headers' => ['max_age' => 0, 'shared_max_age' => 0],
         ], $resource->attributes);
     }
 

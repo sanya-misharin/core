@@ -166,7 +166,7 @@ final class ItemNormalizer extends AbstractItemNormalizer
 
         $attributesMetadata = \array_key_exists($class, $this->attributesMetadataCache) ?
             $this->attributesMetadataCache[$class] :
-            $this->attributesMetadataCache[$class] = $this->classMetadataFactory ? $this->classMetadataFactory->getMetadataFor($object)->getAttributesMetadata() : null;
+            $this->attributesMetadataCache[$class] = $this->classMetadataFactory ? $this->classMetadataFactory->getMetadataFor($class)->getAttributesMetadata() : null;
 
         $key = '_'.$type;
         foreach ($components[$type] as $relation) {
@@ -241,14 +241,14 @@ final class ItemNormalizer extends AbstractItemNormalizer
     private function isMaxDepthReached(array $attributesMetadata, string $class, string $attribute, array &$context): bool
     {
         if (
-            !($context[static::ENABLE_MAX_DEPTH] ?? false) ||
+            !($context[self::ENABLE_MAX_DEPTH] ?? false) ||
             !isset($attributesMetadata[$attribute]) ||
             null === $maxDepth = $attributesMetadata[$attribute]->getMaxDepth()
         ) {
             return false;
         }
 
-        $key = sprintf(static::DEPTH_KEY_PATTERN, $class, $attribute);
+        $key = sprintf(self::DEPTH_KEY_PATTERN, $class, $attribute);
         if (!isset($context[$key])) {
             $context[$key] = 1;
 

@@ -35,7 +35,6 @@ final class AttributesExtractor
     public static function extractAttributes(array $attributes): array
     {
         $result = ['resource_class' => $attributes['_api_resource_class'] ?? null];
-
         if ($subresourceContext = $attributes['_api_subresource_context'] ?? null) {
             $result['subresource_context'] = $subresourceContext;
         }
@@ -58,11 +57,10 @@ final class AttributesExtractor
             return [];
         }
 
-        if (null === $apiRequest = $attributes['_api_receive'] ?? null) {
-            $result['receive'] = true;
-        } else {
-            $result['receive'] = (bool) $apiRequest;
-        }
+        $result += [
+            'receive' => (bool) ($attributes['_api_receive'] ?? true),
+            'persist' => (bool) ($attributes['_api_persist'] ?? true),
+        ];
 
         return $result;
     }
