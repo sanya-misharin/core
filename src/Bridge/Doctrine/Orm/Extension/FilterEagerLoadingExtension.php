@@ -131,21 +131,21 @@ final class FilterEagerLoadingExtension implements ContextAwareQueryCollectionEx
         //Change join aliases
         foreach ($joinParts[$originAlias] as $joinPart) {
             /** @var Join $joinPart */
-            $joinString = str_replace($aliases, $replacements, $joinPart->getJoin());
-            $pos = strpos($joinString, '.');
+            $joinString = \str_replace($aliases, $replacements, $joinPart->getJoin());
+            $pos = \strpos($joinString, '.');
             if (false === $pos) {
                 continue;
             }
-	        $alias = substr($joinString, 0, $pos);
-	        $association = substr($joinString, $pos + 1);
+	        $alias = \substr($joinString, 0, $pos);
+	        $association = \substr($joinString, $pos + 1);
 	        $newAlias = $queryNameGenerator->generateJoinAlias($association);
 	        $aliases[] = "{$joinPart->getAlias()}.";
 	        $replacements[] = "$newAlias.";
-	        $condition = str_replace($aliases, $replacements, $joinPart->getCondition());
+	        $condition = \str_replace($aliases, $replacements, $joinPart->getCondition());
 	        QueryBuilderHelper::addJoinOnce($queryBuilderClone, $queryNameGenerator, $alias, $association, $joinPart->getJoinType(), $joinPart->getConditionType(), $condition, $originAlias, $newAlias);
         }
 
-        $queryBuilderClone->add('where', str_replace($aliases, $replacements, (string) $wherePart));
+        $queryBuilderClone->add('where', \str_replace($aliases, $replacements, (string) $wherePart));
 
         return $queryBuilderClone;
     }
