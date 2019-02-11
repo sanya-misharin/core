@@ -99,7 +99,7 @@ final class ItemNormalizer extends BaseItemNormalizer
 	 */
 	private function cloneToEmptyObject($originalObject)
 	{
-		$class = get_class($originalObject);
+		$class = \get_class($originalObject);
 		$emptyObject = new $class;
 
 		try {
