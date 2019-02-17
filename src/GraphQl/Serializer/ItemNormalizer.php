@@ -40,7 +40,7 @@ final class ItemNormalizer extends BaseItemNormalizer
     public function normalize($object, $format = null, array $context = [])
     {
         $data = parent::normalize($object, $format, $context);
-        $data[self::ITEM_KEY] = serialize($this->cloneToEmptyObject($object)); // calling serialize prevent weird normalization process done by Webonyx's GraphQL PHP
+        $data[self::ITEM_KEY] = \serialize($this->cloneToEmptyObject($object)); // calling serialize prevent weird normalization process done by Webonyx's GraphQL PHP
 
         return $data;
     }
@@ -69,9 +69,9 @@ final class ItemNormalizer extends BaseItemNormalizer
     {
         $allowedAttributes = parent::getAllowedAttributes($classOrObject, $context, $attributesAsString);
 
-        if (($context['api_denormalize'] ?? false) && false !== ($indexId = array_search('id', $allowedAttributes, true))) {
+        if (($context['api_denormalize'] ?? false) && false !== ($indexId = \array_search('id', $allowedAttributes, true))) {
             $allowedAttributes[] = '_id';
-            array_splice($allowedAttributes, (int) $indexId, 1);
+            \array_splice($allowedAttributes, (int) $indexId, 1);
         }
 
         return $allowedAttributes;
@@ -99,18 +99,28 @@ final class ItemNormalizer extends BaseItemNormalizer
 	 */
 	private function cloneToEmptyObject($originalObject)
 	{
-		$class = get_class($originalObject);
+		$class = \get_class($originalObject);
 		$emptyObject = new $class;
 
 		try {
 			$reflectionClass = new \ReflectionClass($class);
-			$property = $reflectionClass->getProperty('id');
+			$idProperty = $reflectionClass->getProperty('id');
+
+			// For audit entities
+			if ($reflectionClass->hasProperty('revision')) {
+				$revProperty = $reflectionClass->getProperty('revision');
+			}
 		} catch (\ReflectionException $e) {
 			return $originalObject;
 		}
 
-		$property->setAccessible(true);
-		$property->setValue($emptyObject, $property->getValue($originalObject));
+		$idProperty->setAccessible(true);
+		$idProperty->setValue($emptyObject, $idProperty->getValue($originalObject));
+
+		if (isset($revProperty)) {
+			$revProperty->setAccessible(true);
+			$revProperty->setValue($emptyObject, $revProperty->getValue($originalObject));
+		}
 
 		return $emptyObject;
 	}
