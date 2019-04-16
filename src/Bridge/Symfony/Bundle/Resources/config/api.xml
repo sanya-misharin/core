@@ -65,7 +65,7 @@
         <service id="ApiPlatform\Core\Api\IriConverterInterface" alias="api_platform.iri_converter" />
 
         <service id="api_platform.formats_provider" class="ApiPlatform\Core\Api\FormatsProvider">
-            <argument type="service" id="api_platform.metadata.resource.metadata_factory"></argument>
+            <argument type="service" id="api_platform.metadata.resource.metadata_factory" />
             <argument>%api_platform.formats%</argument>
         </service>
 
@@ -98,8 +98,13 @@
             <argument type="service" id="serializer.mapping.class_metadata_factory" on-invalid="ignore" />
             <argument type="service" id="api_platform.item_data_provider" on-invalid="ignore" />
             <argument>%api_platform.allow_plain_identifiers%</argument>
+            <argument>null</argument>
+            <argument type="tagged" tag="api_platform.data_transformer" on-invalid="ignore" />
+            <argument type="service" id="api_platform.metadata.resource.metadata_factory" on-invalid="ignore" />
+            <argument>false</argument>
 
-            <tag name="serializer.normalizer" />
+            <!-- Run after serializer.normalizer.data_uri but before serializer.normalizer.object -->
+            <tag name="serializer.normalizer" priority="-923" />
         </service>
 
         <!-- Resources Operations path resolver -->
@@ -138,7 +143,7 @@
         <!-- kernel.request priority must be < 8 to be executed after the Firewall -->
         <service id="api_platform.listener.request.add_format" class="ApiPlatform\Core\EventListener\AddFormatListener">
             <argument type="service" id="api_platform.negotiator" />
-            <argument type="service" id="api_platform.formats_provider"></argument>
+            <argument type="service" id="api_platform.formats_provider" />
 
             <tag name="kernel.event_listener" event="kernel.request" method="onKernelRequest" priority="7" />
         </service>
@@ -156,7 +161,7 @@
         <service id="api_platform.listener.view.write" class="ApiPlatform\Core\EventListener\WriteListener">
             <argument type="service" id="api_platform.data_persister" />
             <argument type="service" id="api_platform.iri_converter" on-invalid="null" />
-            <argument type="service" id="api_platform.metadata.resource.metadata_factory" />
+            <argument type="service" id="api_platform.metadata.resource.metadata_factory" on-invalid="null" />
 
             <tag name="kernel.event_listener" event="kernel.view" method="onKernelView" priority="32" />
         </service>
@@ -281,6 +286,19 @@
 
         <service id="api_platform.cache.subresource_operation_factory" parent="cache.system" public="false">
             <tag name="cache.pool" />
+        </service>
+
+        <service id="api_platform.cache_warmer.cache_pool_clearer" class="ApiPlatform\Core\Bridge\Symfony\Bundle\CacheWarmer\CachePoolClearerCacheWarmer" public="false">
+            <argument type="service" id="cache.system_clearer" />
+            <argument type="collection">
+                <argument>api_platform.cache.metadata.property</argument>
+                <argument>api_platform.cache.metadata.resource</argument>
+                <argument>api_platform.cache.route_name_resolver</argument>
+                <argument>api_platform.cache.identifiers_extractor</argument>
+                <argument>api_platform.cache.subresource_operation_factory</argument>
+                <argument>api_platform.elasticsearch.cache.metadata.document</argument>
+            </argument>
+            <tag name="kernel.cache_warmer" priority="64" />
         </service>
     </services>
 

@@ -13,34 +13,36 @@ declare(strict_types=1);
 
 namespace ApiPlatform\Core\Tests\Fixtures\TestBundle\Entity;
 
-use ApiPlatform\Core\Annotation\ApiProperty;
 use ApiPlatform\Core\Annotation\ApiResource;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Serializer\Annotation\Groups;
 
 /**
- * Dummy Output.
- *
- * @author Kévin Dunglas <dunglas@gmail.com>
- *
- * @ApiResource
+ * @ApiResource(
+ *     attributes={"normalization_context"={"groups"={"address_read"}}}
+ * )
  * @ORM\Entity
  */
-class DummyOutput
+class Address
 {
     /**
-     * @var int The id
+     * @var int
      *
-     * @ORM\Column(type="integer")
      * @ORM\Id
+     * @ORM\Column(type="integer")
      * @ORM\GeneratedValue(strategy="AUTO")
+     * @Groups({"address_read"})
      */
-    public $id;
+    private $id;
 
     /**
-     * @var string The dummy name
-     *
-     * @ORM\Column
-     * @ApiProperty(iri="http://schema.org/name")
+     * @ORM\Column(type="string")
+     * @Groups({"address_read"})
      */
     public $name;
+
+    public function getId()
+    {
+        return $this->id;
+    }
 }

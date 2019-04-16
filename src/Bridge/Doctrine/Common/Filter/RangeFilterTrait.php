@@ -96,7 +96,7 @@ trait RangeFilterTrait
     /**
      * Normalize the values array for between operator.
      */
-    private function normalizeBetweenValues(array $values, string $property): ?array
+    private function normalizeBetweenValues(array $values): ?array
     {
         if (2 !== \count($values)) {
             $this->getLogger()->notice('Invalid filter ignored', [
@@ -114,13 +114,15 @@ trait RangeFilterTrait
             return null;
         }
 
-        return $values;
+        return [$values[0] + 0, $values[1] + 0]; // coerce to the right types.
     }
 
     /**
      * Normalize the value.
+     *
+     * @return int|float|null
      */
-    private function normalizeValue(string $value, string $property, string $operator): ?string
+    private function normalizeValue(string $value, string $operator)
     {
         if (!is_numeric($value)) {
             $this->getLogger()->notice('Invalid filter ignored', [
@@ -130,6 +132,6 @@ trait RangeFilterTrait
             return null;
         }
 
-        return $value;
+        return $value + 0; // coerce $value to the right type.
     }
 }

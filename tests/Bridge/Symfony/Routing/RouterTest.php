@@ -16,6 +16,7 @@ namespace ApiPlatform\Core\Tests\Bridge\Symfony\Routing;
 use ApiPlatform\Core\Bridge\Symfony\Routing\Router;
 use PHPUnit\Framework\TestCase;
 use Prophecy\Argument;
+use Symfony\Component\Routing\Exception\ExceptionInterface as RoutingExceptionInterface;
 use Symfony\Component\Routing\RequestContext;
 use Symfony\Component\Routing\RouteCollection;
 use Symfony\Component\Routing\RouterInterface;
@@ -29,7 +30,7 @@ class RouterTest extends TestCase
     {
         $context = new RequestContext();
 
-        $mockedRouter = $this->prophesize('Symfony\Component\Routing\RouterInterface');
+        $mockedRouter = $this->prophesize(RouterInterface::class);
         $mockedRouter->setContext($context)->shouldBeCalled();
         $mockedRouter->getContext()->willReturn($context)->shouldBeCalled();
 
@@ -42,7 +43,7 @@ class RouterTest extends TestCase
     {
         $routeCollection = new RouteCollection();
 
-        $mockedRouter = $this->prophesize('Symfony\Component\Routing\RouterInterface');
+        $mockedRouter = $this->prophesize(RouterInterface::class);
         $mockedRouter->getRouteCollection()->willReturn($routeCollection)->shouldBeCalled();
 
         $router = new Router($mockedRouter->reveal());
@@ -51,7 +52,7 @@ class RouterTest extends TestCase
 
     public function testGenerate()
     {
-        $mockedRouter = $this->prophesize('Symfony\Component\Routing\RouterInterface');
+        $mockedRouter = $this->prophesize(RouterInterface::class);
         $mockedRouter->generate('foo', [], RouterInterface::ABSOLUTE_PATH)->willReturn('/bar')->shouldBeCalled();
 
         $router = new Router($mockedRouter->reveal());
@@ -62,14 +63,27 @@ class RouterTest extends TestCase
     {
         $context = new RequestContext('/app_dev.php', 'GET', 'localhost', 'https');
 
-        $mockedRouter = $this->prophesize('Symfony\Component\Routing\RouterInterface');
+        $mockedRouter = $this->prophesize(RouterInterface::class);
         $mockedRouter->getContext()->willReturn($context)->shouldBeCalled();
-        $mockedRouter->setContext(Argument::type('Symfony\Component\Routing\RequestContext'))->shouldBeCalled();
+        $mockedRouter->setContext(Argument::type(RequestContext::class))->shouldBeCalled();
         $mockedRouter->setContext($context)->shouldBeCalled();
         $mockedRouter->match('/foo')->willReturn(['bar'])->shouldBeCalled();
 
         $router = new Router($mockedRouter->reveal());
 
         $this->assertEquals(['bar'], $router->match('/app_dev.php/foo'));
+    }
+
+    public function testWithinvalidContext()
+    {
+        $this->expectException(RoutingExceptionInterface::class);
+        $this->expectExceptionMessage('Invalid request context.');
+        $context = new RequestContext('/app_dev.php', 'GET', 'localhost', 'https');
+
+        $mockedRouter = $this->prophesize(RouterInterface::class);
+        $mockedRouter->getContext()->willReturn($context)->shouldBeCalled();
+
+        $router = new Router($mockedRouter->reveal());
+        $router->match('28-01-2018 10:10');
     }
 }

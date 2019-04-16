@@ -15,26 +15,19 @@ namespace ApiPlatform\Core\Tests\Fixtures\TestBundle\Entity;
 
 use ApiPlatform\Core\Annotation\ApiProperty;
 use ApiPlatform\Core\Annotation\ApiResource;
+use ApiPlatform\Core\Tests\Fixtures\TestBundle\Dto\MessengerInput;
 
 /**
- * Dummy Input.
- *
- * @author Kévin Dunglas <dunglas@gmail.com>
- *
- * @ApiResource
+ * @ApiResource(messenger="input", input=MessengerInput::class, graphql={"create"={"input"=MessengerInput::class, "messenger"="input"}})
  */
-class DummyInput
+class MessengerWithInput
 {
     /**
-     * @var int The id
      * @ApiProperty(identifier=true)
      */
     public $id;
-
     /**
-     * @var string The dummy name
-     *
-     * @ApiProperty
+     * @var string
      */
     public $name;
 }

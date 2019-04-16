@@ -76,8 +76,9 @@ final class ItemMutationResolverFactory implements ResolverFactoryInterface
             $item = null;
 
             $resourceMetadata = $this->resourceMetadataFactory->create($resourceClass);
+            $wrapFieldName = lcfirst($resourceMetadata->getShortName());
             $normalizationContext = $resourceMetadata->getGraphqlAttribute($operationName ?? '', 'normalization_context', [], true);
-            $normalizationContext['attributes'] = $this->fieldsToAttributes($info);
+            $normalizationContext['attributes'] = $this->fieldsToAttributes($info)[$wrapFieldName] ?? [];
 
             if (isset($args['input']['id'])) {
                 try {
@@ -91,32 +92,41 @@ final class ItemMutationResolverFactory implements ResolverFactoryInterface
                 }
             }
 
-            $resourceMetadata = $this->resourceMetadataFactory->create($resourceClass);
             $this->canAccess($this->resourceAccessChecker, $resourceMetadata, $resourceClass, $info, $item, $operationName);
-            if (false === $resourceClass = $resourceMetadata->getAttribute('input_class', $resourceClass)) {
-                return null;
+
+            $inputMetadata = $resourceMetadata->getGraphqlAttribute($operationName, 'input', null, true);
+            $inputClass = null;
+            if (\is_array($inputMetadata) && \array_key_exists('class', $inputMetadata)) {
+                if (null === $inputMetadata['class']) {
+                    return $data;
+                }
+
+                $inputClass = $inputMetadata['class'];
             }
 
             switch ($operationName) {
                 case 'create':
                 case 'update':
-                    $context = null === $item ? ['resource_class' => $resourceClass] : ['resource_class' => $resourceClass, 'object_to_populate' => $item];
+                    $context = ['resource_class' => $resourceClass, 'graphql_operation_name' => $operationName];
+                    if (null !== $item) {
+                        $context['object_to_populate'] = $item;
+                    }
                     $context += $resourceMetadata->getGraphqlAttribute($operationName, 'denormalization_context', [], true);
-                    $item = $this->normalizer->denormalize($args['input'], $resourceClass, ItemNormalizer::FORMAT, $context);
+                    $item = $this->normalizer->denormalize($args['input'], $inputClass ?: $resourceClass, ItemNormalizer::FORMAT, $context);
                     $this->validate($item, $info, $resourceMetadata, $operationName);
-                    $persistResult = $this->dataPersister->persist($item);
+                    $persistResult = $this->dataPersister->persist($item, $context);
 
                     if (null === $persistResult) {
                         @trigger_error(sprintf('Returning void from %s::persist() is deprecated since API Platform 2.3 and will not be supported in API Platform 3, an object should always be returned.', DataPersisterInterface::class), E_USER_DEPRECATED);
                     }
 
-                    return $this->normalizer->normalize($persistResult ?? $item, ItemNormalizer::FORMAT, $normalizationContext) + $data;
+                    return [$wrapFieldName => $this->normalizer->normalize($persistResult ?? $item, ItemNormalizer::FORMAT, $normalizationContext)] + $data;
                 case 'delete':
                     if ($item) {
                         $this->dataPersister->remove($item);
-                        $data['id'] = $args['input']['id'];
+                        $data[$wrapFieldName]['id'] = $args['input']['id'];
                     } else {
-                        $data['id'] = null;
+                        $data[$wrapFieldName]['id'] = null;
                     }
             }
 
@@ -129,7 +139,7 @@ final class ItemMutationResolverFactory implements ResolverFactoryInterface
      *
      * @throws Error
      */
-    private function validate($item, ResolveInfo $info, ResourceMetadata $resourceMetadata, string $operationName = null)
+    private function validate($item, ResolveInfo $info, ResourceMetadata $resourceMetadata, string $operationName = null): void
     {
         if (null === $this->validator) {
             return;

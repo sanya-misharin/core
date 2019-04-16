@@ -31,7 +31,6 @@ use ApiPlatform\Core\Tests\Fixtures\TestBundle\Entity\Dummy;
 use ApiPlatform\Core\Tests\Fixtures\TestBundle\Entity\RelatedDummy;
 use PHPUnit\Framework\TestCase;
 use Prophecy\Argument;
-use Symfony\Component\HttpFoundation\Exception\SuspiciousOperationException;
 use Symfony\Component\Routing\Exception\RouteNotFoundException;
 use Symfony\Component\Routing\RouterInterface;
 
@@ -99,20 +98,6 @@ class IriConverterTest extends TestCase
         $converter->getItemFromIri('/users/3');
     }
 
-    public function testGetItemFromIriWithDateLooksLikeUrl()
-    {
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('No route matches "28-01-2018 10:10".');
-
-        $itemDataProviderProphecy = $this->prophesize(ItemDataProviderInterface::class);
-
-        $routerProphecy = $this->prophesize(RouterInterface::class);
-        $routerProphecy->match('28-01-2018 10:10')->willThrow(new SuspiciousOperationException())->shouldBeCalledTimes(1);
-
-        $converter = $this->getIriConverter($routerProphecy, null, $itemDataProviderProphecy);
-        $converter->getItemFromIri('28-01-2018 10:10');
-    }
-
     public function testGetItemFromIri()
     {
         $item = new \stdClass();
@@ -132,16 +117,10 @@ class IriConverterTest extends TestCase
 
     public function testGetItemFromIriWithOperationName()
     {
-        $propertyNameCollectionFactoryProphecy = $this->prophesize(PropertyNameCollectionFactoryInterface::class);
-
-        $propertyMetadataFactoryProphecy = $this->prophesize(PropertyMetadataFactoryInterface::class);
-
         $itemDataProviderProphecy = $this->prophesize(ItemDataProviderInterface::class);
         $itemDataProviderProphecy->getItem('AppBundle\Entity\User', '3', 'operation_name', ['fetch_data' => true])
             ->willReturn('foo')
             ->shouldBeCalledTimes(1);
-
-        $routeNameResolverProphecy = $this->prophesize(RouteNameResolverInterface::class);
 
         $routerProphecy = $this->prophesize(RouterInterface::class);
         $routerProphecy->match('/users/3')->willReturn([
@@ -257,7 +236,6 @@ class IriConverterTest extends TestCase
     {
         $item = new \stdClass();
         $subresourceContext = ['identifiers' => [['id', Dummy::class, true]]];
-        $itemDataProviderProphecy = $this->prophesize(ItemDataProviderInterface::class);
         $routeNameResolverProphecy = $this->prophesize(RouteNameResolverInterface::class);
         $routerProphecy = $this->prophesize(RouterInterface::class);
         $routerProphecy->match('/users/3/adresses')->willReturn([
@@ -278,7 +256,6 @@ class IriConverterTest extends TestCase
         $this->expectExceptionMessage('Item not found for "/users/3/adresses".');
 
         $subresourceContext = ['identifiers' => [['id', Dummy::class, true]]];
-        $itemDataProviderProphecy = $this->prophesize(ItemDataProviderInterface::class);
         $routeNameResolverProphecy = $this->prophesize(RouteNameResolverInterface::class);
         $routerProphecy = $this->prophesize(RouterInterface::class);
         $routerProphecy->match('/users/3/adresses')->willReturn([
@@ -322,7 +299,7 @@ class IriConverterTest extends TestCase
         $routeNameResolverProphecy = $this->prophesize(RouteNameResolverInterface::class);
         $routerProphecy = $this->prophesize(RouterInterface::class);
 
-        $converter = $this->getIriConverter($routerProphecy, $routeNameResolverProphecy, null);
+        $converter = $this->getIriConverter($routerProphecy, $routeNameResolverProphecy);
 
         $method = new \ReflectionMethod(IriConverter::class, 'generateIdentifiersUrl');
         $method->setAccessible(true);

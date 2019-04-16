@@ -1,5 +1,93 @@
 # Changelog
 
+## 2.4.2
+
+* Fix a dependency injection injection problem in `FilterEagerLoadingExtension`
+* Improve performance by adding a `NoOpScalarNormalizer` handling scalar values
+
+## 2.4.1
+
+* Improve performance of the dev environment and deprecate the `api_platform.metadata_cache` parameter
+* Fix a BC break in `SearchFilter`
+* Don't send HTTP cache headers for unsuccessful responses
+* GraphQL: parse input and messenger metadata on the GraphQl operation
+* GraphQL: do not enable graphql when `webonyx/graphql-php` is not installed
+
+## 2.4.0
+
+* Listeners are now opt-in when not handling API Platform operations
+* `DISTINCT` is not used when there are no joins
+* Preserve manual join in FilterEagerLoadingExtension
+* The `elasticsearch` attribute can be disabled resource-wise or per-operation
+* The `messenger` attribute can now take the `input` string as a value (`messenger="input"`). This will use a default transformer so that the given `input` is directly sent to the messenger handler.
+* The `messenger` attribute can be declared per-operation
+* Mercure updates are now published after the Doctrine flush event instead of on `kernel.terminate`, so the Mercure and the Messenger integration can be used together
+* Use Symfony's MetadataAwareNameConverter when available
+* Change the extension's priorities (`<0`) for improved compatibility with Symfony's autoconfiguration feature. If you have custom extensions we recommend to use positive priorities.
+
+| Service name                                               | Priority | Class                                              |
+|------------------------------------------------------------|------|---------------------------------------------------------|
+| api_platform.doctrine.orm.query_extension.eager_loading (collection) | -8 | ApiPlatform\Core\Bridge\Doctrine\Orm\Extension\EagerLoadingExtension |
+| api_platform.doctrine.orm.query_extension.eager_loading (item) | -8 | ApiPlatform\Core\Bridge\Doctrine\Orm\Extension\EagerLoadingExtension |
+| api_platform.doctrine.orm.query_extension.filter | -16 | ApiPlatform\Core\Bridge\Doctrine\Orm\Extension\FilterExtension |
+| api_platform.doctrine.orm.query_extension.filter_eager_loading | -17 | ApiPlatform\Core\Bridge\Doctrine\Orm\Extension\FilterEagerLoadingExtension |
+| api_platform.doctrine.orm.query_extension.order | -32 | ApiPlatform\Core\Bridge\Doctrine\Orm\Extension\OrderExtension |
+| api_platform.doctrine.orm.query_extension.pagination | -64 | ApiPlatform\Core\Bridge\Doctrine\Orm\Extension\PaginationExtension |
+
+* Fix JSON-LD contexts when using output classes
+* GraphQl: Fix pagination (the `endCursor` behavior was wrong)
+* GraphQl: Improve output/input behavior
+* GraphQl: Improve mutations (make the `clientMutationId` nullable and return mutation payload as an object)
+* MongoDB: Fix search filter when searching by related collection id
+* MongoDB: Fix numeric and range filters
+
+## 2.4.0 beta 2
+
+* Fix version constraints for Doctrine MongoDB ODM
+* Respect `_api_respond` request attribute in the SerializeListener
+* Change the normalizer's priorities (`< 0`). If you have custom normalizer we recommend to use positive priorities.
+
+| Service name                                               | Priority | Class                                              |
+|------------------------------------------------------------|------|---------------------------------------------------------|
+| api_platform.hydra.normalizer.constraint_violation_list   | -780 | ApiPlatform\Core\Hydra\Serializer\ConstraintViolationListNormalizer
+| api_platform.jsonapi.normalizer.constraint_violation_list | -780 | ApiPlatform\Core\JsonApi\Serializer\ConstraintViolationListNormalizer
+| api_platform.problem.normalizer.constraint_violation_list | -780 | ApiPlatform\Core\Problem\Serializer\ConstraintViolationListNormalizer
+| api_platform.swagger.normalizer.api_gateway               | -780 | ApiPlatform\Core\Swagger\Serializer\ApiGatewayNormalizer
+| api_platform.hal.normalizer.collection                    | -790 | ApiPlatform\Core\Hal\Serializer\CollectionNormalizer
+| api_platform.hydra.normalizer.collection_filters          | -790 | ApiPlatform\Core\Hydra\Serializer\CollectionFiltersNormalizer
+| api_platform.jsonapi.normalizer.collection                | -790 | ApiPlatform\Core\JsonApi\Serializer\CollectionNormalizer
+| api_platform.jsonapi.normalizer.error                     | -790 | ApiPlatform\Core\JsonApi\Serializer\ErrorNormalizer
+| api_platform.hal.normalizer.entrypoint                    | -800 | ApiPlatform\Core\Hal\Serializer\EntrypointNormalizer
+| api_platform.hydra.normalizer.documentation               | -800 | ApiPlatform\Core\Hydra\Serializer\DocumentationNormalizer
+| api_platform.hydra.normalizer.entrypoint                  | -800 | ApiPlatform\Core\Hydra\Serializer\EntrypointNormalizer
+| api_platform.hydra.normalizer.error                       | -800 | ApiPlatform\Core\Hydra\Serializer\ErrorNormalizer
+| api_platform.jsonapi.normalizer.entrypoint                | -800 | ApiPlatform\Core\JsonApi\Serializer\EntrypointNormalizer
+| api_platform.problem.normalizer.error                     | -810 | ApiPlatform\Core\Problem\Serializer\ErrorNormalizer
+| serializer.normalizer.json_serializable                   | -900 | Symfony\Component\Serializer\Normalizer\JsonSerializableNormalizer
+| serializer.normalizer.datetime                            | -910 | Symfony\Component\Serializer\Normalizer\DateTimeNormalizer
+| serializer.normalizer.constraint_violation_list           | -915 | Symfony\Component\Serializer\Normalizer\ConstraintViolationListNormalizer
+| serializer.normalizer.dateinterval                        | -915 | Symfony\Component\Serializer\Normalizer\DateIntervalNormalizer
+| serializer.normalizer.data_uri                            | -920 | Symfony\Component\Serializer\Normalizer\DataUriNormalizer
+| api_platform.graphql.normalizer.item                      | -922 | ApiPlatform\Core\GraphQl\Serializer\ItemNormalizer
+| api_platform.hal.normalizer.item                          | -922 | ApiPlatform\Core\Hal\Serializer\ItemNormalizer
+| api_platform.jsonapi.normalizer.item                      | -922 | ApiPlatform\Core\JsonApi\Serializer\ItemNormalizer
+| api_platform.jsonld.normalizer.item                       | -922 | ApiPlatform\Core\JsonLd\Serializer\ItemNormalizer
+| api_platform.serializer.normalizer.item                   | -923 | ApiPlatform\Core\Serializer\ItemNormalizer
+| serializer.normalizer.object                              | -1000 | Symfony\Component\Serializer\Normalizer\ObjectNormalizer
+
+* Allow custom stylesheets to be appended or replaced in the swagger UI
+* Load messenger only if available
+* Fix missing metadata cache pool for Elasticsearch
+* Make use of the new AdvancedNameConverterInterface interface for name converters
+* Refactor input/output attributes, where these attributes now take:
+  - an array specifying a class and some specific attributes (`name` and `iri` if needed)
+  - a string representing the class
+  - a `falsy` boolean to disable the input/output
+* Introduce the DataTransformer concept to transform an input/output from/to a resource
+* Api Platform normalizer is not limited to Resources anymore (you can use DTO as relations and more...)
+* MongoDB: allow a `0` limit in the pagination
+* Fix support of a discriminator mapping in an entity
+
 ## 2.4.0 beta 1
 
 * MongoDB: full support
@@ -35,7 +123,7 @@
 
 ## 2.3.6
 
-* /!\ Security: a vulnerability impacting the GraphQL subsystem was allowing users authorized to run mutations for a specific resource type, to execute it on any resource, of any type
+* /!\ Security: a vulnerability impacting the GraphQL subsystem was allowing users authorized to run mutations for a specific resource type, to execute it on any resource, of any type (CVE-2019-1000011)
 * Fix normalization of raw collections (not API resources)
 * Fix content negotiation format matching
 
@@ -120,7 +208,7 @@
 
 ## 2.2.10
 
-* /!\ Security: a vulnerability impacting the GraphQL subsystem was allowing users authorized to run mutations for a specific resource type, to execute it on any resource, of any type
+* /!\ Security: a vulnerability impacting the GraphQL subsystem was allowing users authorized to run mutations for a specific resource type, to execute it on any resource, of any type (CVE-2019-1000011)
 
 ## 2.2.9
 
@@ -203,7 +291,7 @@
 
 ## 2.2.2
 
-* Autoregister classes implementing `SubresourceDataProviderInterface` 
+* Autoregister classes implementing `SubresourceDataProviderInterface`
 * Fix the `DateTimeImmutable` support in the date filter
 * Fix a BC break in `DocumentationAction` impacting NelmioApiDoc
 * Fix the context passed to data providers (improve the eager loading)
@@ -233,9 +321,9 @@
 * Remove the `api_platform.doctrine.listener.view.write` event listener service.
 * Add a data persistence layer with a new `ApiPlatform\Core\DataPersister\DataPersisterInterface` interface.
 * Add the a new configuration to disable the API entrypoint and the documentation
-* Allow to set maximum items per page at operation/resource level  
+* Allow to set maximum items per page at operation/resource level
 * Add the ability to customize the message when configuring an access control rule trough the `access_control_message` attribute
-* Allow empty operations in XML configs 
+* Allow empty operations in XML configs
 
 ## 2.1.6
 
@@ -262,14 +350,14 @@
 ## 2.1.4
 
 * Symfony 3.4 and 4.0 compatibility
-* Autowiring strict mode compatibility 
+* Autowiring strict mode compatibility
 * Fix a bug preventing to create resource classes in the global namespace
 * Fix Doctrine type conversion in filter's WHERE clauses
 * Fix filters when using eager loading and non-association composite identifier
-* Fix Doctrine type resolution for identifiers (for custom DBALType) 
+* Fix Doctrine type resolution for identifiers (for custom DBALType)
 * Add missing Symfony Routing options to operations configuration
 * Add SubresourceOperations to metadata
-* Fix disabling of cache pools with the dev environment 
+* Fix disabling of cache pools with the dev environment
 
 ## 2.1.3
 

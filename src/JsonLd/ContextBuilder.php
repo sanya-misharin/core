@@ -18,6 +18,7 @@ use ApiPlatform\Core\Metadata\Property\Factory\PropertyMetadataFactoryInterface;
 use ApiPlatform\Core\Metadata\Property\Factory\PropertyNameCollectionFactoryInterface;
 use ApiPlatform\Core\Metadata\Resource\Factory\ResourceMetadataFactoryInterface;
 use ApiPlatform\Core\Metadata\Resource\Factory\ResourceNameCollectionFactoryInterface;
+use ApiPlatform\Core\Util\ClassInfoTrait;
 use Symfony\Component\Serializer\NameConverter\NameConverterInterface;
 
 /**
@@ -25,9 +26,11 @@ use Symfony\Component\Serializer\NameConverter\NameConverterInterface;
  *
  * @author Kévin Dunglas <dunglas@gmail.com>
  */
-final class ContextBuilder implements ContextBuilderInterface
+final class ContextBuilder implements AnonymousContextBuilderInterface
 {
-    const FORMAT = 'jsonld';
+    use ClassInfoTrait;
+
+    public const FORMAT = 'jsonld';
 
     private $resourceNameCollectionFactory;
     private $resourceMetadataFactory;
@@ -87,9 +90,53 @@ final class ContextBuilder implements ContextBuilderInterface
      */
     public function getResourceContext(string $resourceClass, int $referenceType = UrlGeneratorInterface::ABS_PATH): array
     {
-        $context = $this->getBaseContext($referenceType);
+        $metadata = $this->resourceMetadataFactory->create($resourceClass);
+        if (null === $shortName = $metadata->getShortName()) {
+            return [];
+        }
+
+        return $this->getResourceContextWithShortname($resourceClass, $referenceType, $shortName);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getResourceContextUri(string $resourceClass, int $referenceType = UrlGeneratorInterface::ABS_PATH): string
+    {
         $resourceMetadata = $this->resourceMetadataFactory->create($resourceClass);
-        $shortName = $resourceMetadata->getShortName();
+
+        return $this->urlGenerator->generate('api_jsonld_context', ['shortName' => $resourceMetadata->getShortName()], $referenceType);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getAnonymousResourceContext($object, array $context = [], int $referenceType = UrlGeneratorInterface::ABS_PATH): array
+    {
+        $outputClass = $this->getObjectClass($object);
+        $shortName = (new \ReflectionClass($outputClass))->getShortName();
+
+        $jsonLdContext = [
+            '@context' => $this->getResourceContextWithShortname(
+                $outputClass,
+                $referenceType,
+                $shortName
+            ),
+            '@type' => $shortName,
+            '@id' => $context['iri'] ?? '_:'.(\function_exists('spl_object_id') ? spl_object_id($object) : spl_object_hash($object)),
+        ];
+
+        // here the object can be different from the resource given by the $context['api_resource'] value
+        if (isset($context['api_resource'])) {
+            $jsonLdContext['@type'] = $this->resourceMetadataFactory->create($this->getObjectClass($context['api_resource']))->getShortName();
+        }
+
+        return $jsonLdContext;
+    }
+
+    private function getResourceContextWithShortname(string $resourceClass, int $referenceType, string $shortName): array
+    {
+        $context = $this->getBaseContext($referenceType);
 
         foreach ($this->propertyNameCollectionFactory->create($resourceClass) as $propertyName) {
             $propertyMetadata = $this->propertyMetadataFactory->create($resourceClass, $propertyName);
@@ -98,14 +145,14 @@ final class ContextBuilder implements ContextBuilderInterface
                 continue;
             }
 
-            $convertedName = $this->nameConverter ? $this->nameConverter->normalize($propertyName) : $propertyName;
+            $convertedName = $this->nameConverter ? $this->nameConverter->normalize($propertyName, $resourceClass, self::FORMAT) : $propertyName;
             $jsonldContext = $propertyMetadata->getAttributes()['jsonld_context'] ?? [];
 
             if (!$id = $propertyMetadata->getIri()) {
                 $id = sprintf('%s/%s', $shortName, $convertedName);
             }
 
-            if (true !== $propertyMetadata->isReadableLink()) {
+            if (false === $propertyMetadata->isReadableLink()) {
                 $jsonldContext += [
                     '@id' => $id,
                     '@type' => '@id',
@@ -122,15 +169,5 @@ final class ContextBuilder implements ContextBuilderInterface
         }
 
         return $context;
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function getResourceContextUri(string $resourceClass, int $referenceType = UrlGeneratorInterface::ABS_PATH): string
-    {
-        $resourceMetadata = $this->resourceMetadataFactory->create($resourceClass);
-
-        return $this->urlGenerator->generate('api_jsonld_context', ['shortName' => $resourceMetadata->getShortName()], $referenceType);
     }
 }

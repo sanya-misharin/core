@@ -13,10 +13,11 @@ declare(strict_types=1);
 
 namespace ApiPlatform\Core\Hal\Serializer;
 
-use ApiPlatform\Core\Exception\RuntimeException;
 use ApiPlatform\Core\Serializer\AbstractItemNormalizer;
 use ApiPlatform\Core\Serializer\ContextTrait;
 use ApiPlatform\Core\Util\ClassInfoTrait;
+use Symfony\Component\Serializer\Exception\LogicException;
+use Symfony\Component\Serializer\Exception\UnexpectedValueException;
 use Symfony\Component\Serializer\Mapping\AttributeMetadataInterface;
 
 /**
@@ -29,7 +30,7 @@ final class ItemNormalizer extends AbstractItemNormalizer
     use ContextTrait;
     use ClassInfoTrait;
 
-    const FORMAT = 'jsonhal';
+    public const FORMAT = 'jsonhal';
 
     private $componentsCache = [];
     private $attributesMetadataCache = [];
@@ -37,9 +38,9 @@ final class ItemNormalizer extends AbstractItemNormalizer
     /**
      * {@inheritdoc}
      */
-    public function supportsNormalization($data, $format = null)
+    public function supportsNormalization($data, $format = null, array $context = []): bool
     {
-        return self::FORMAT === $format && parent::supportsNormalization($data, $format);
+        return self::FORMAT === $format && parent::supportsNormalization($data, $format, $context);
     }
 
     /**
@@ -47,50 +48,63 @@ final class ItemNormalizer extends AbstractItemNormalizer
      */
     public function normalize($object, $format = null, array $context = [])
     {
+        if (null !== $outputClass = $this->getOutputClass($this->getObjectClass($object), $context)) {
+            return parent::normalize($object, $format, $context);
+        }
+
         if (!isset($context['cache_key'])) {
             $context['cache_key'] = $this->getHalCacheKey($format, $context);
         }
 
+        // Use resolved resource class instead of given resource class to support multiple inheritance child types
         $resourceClass = $this->resourceClassResolver->getResourceClass($object, $context['resource_class'] ?? null, true);
         $context = $this->initContext($resourceClass, $context);
-        $context['iri'] = $this->iriConverter->getIriFromItem($object);
+        $iri = $this->iriConverter->getIriFromItem($object);
+        $context['iri'] = $iri;
         $context['api_normalize'] = true;
 
-        $rawData = parent::normalize($object, $format, $context);
-        if (!\is_array($rawData)) {
-            return $rawData;
+        $data = parent::normalize($object, $format, $context);
+        if (!\is_array($data)) {
+            return $data;
         }
 
-        $data = ['_links' => ['self' => ['href' => $context['iri']]]];
+        $metadata = [
+            '_links' => [
+                'self' => [
+                    'href' => $iri,
+                ],
+            ],
+        ];
         $components = $this->getComponents($object, $format, $context);
-        $data = $this->populateRelation($data, $object, $format, $context, $components, 'links');
-        $data = $this->populateRelation($data, $object, $format, $context, $components, 'embedded');
+        $metadata = $this->populateRelation($metadata, $object, $format, $context, $components, 'links');
+        $metadata = $this->populateRelation($metadata, $object, $format, $context, $components, 'embedded');
 
-        return $data + $rawData;
+        return $metadata + $data;
     }
 
     /**
      * {@inheritdoc}
      */
-    public function supportsDenormalization($data, $type, $format = null)
+    public function supportsDenormalization($data, $type, $format = null, array $context = []): bool
     {
-        return false;
+        // prevent the use of lower priority normalizers (e.g. serializer.normalizer.object) for this format
+        return self::FORMAT === $format;
     }
 
     /**
      * {@inheritdoc}
      *
-     * @throws RuntimeException
+     * @throws LogicException
      */
     public function denormalize($data, $class, $format = null, array $context = [])
     {
-        throw new RuntimeException(sprintf('%s is a read-only format.', self::FORMAT));
+        throw new LogicException(sprintf('%s is a read-only format.', self::FORMAT));
     }
 
     /**
      * {@inheritdoc}
      */
-    protected function getAttributes($object, $format = null, array $context)
+    protected function getAttributes($object, $format = null, array $context): array
     {
         return $this->getComponents($object, $format, $context)['states'];
     }
@@ -99,10 +113,8 @@ final class ItemNormalizer extends AbstractItemNormalizer
      * Gets HAL components of the resource: states, links and embedded.
      *
      * @param object $object
-     *
-     * @return array
      */
-    private function getComponents($object, string $format = null, array $context)
+    private function getComponents($object, ?string $format, array $context): array
     {
         $cacheKey = $this->getObjectClass($object).'-'.$context['cache_key'];
 
@@ -160,7 +172,7 @@ final class ItemNormalizer extends AbstractItemNormalizer
      *
      * @param object $object
      */
-    private function populateRelation(array $data, $object, string $format = null, array $context, array $components, string $type): array
+    private function populateRelation(array $data, $object, ?string $format, array $context, array $components, string $type): array
     {
         $class = $this->getObjectClass($object);
 
@@ -181,7 +193,7 @@ final class ItemNormalizer extends AbstractItemNormalizer
 
             $relationName = $relation['name'];
             if ($this->nameConverter) {
-                $relationName = $this->nameConverter->normalize($relationName);
+                $relationName = $this->nameConverter->normalize($relationName, $class, $format, $context);
             }
 
             if ('one' === $relation['cardinality']) {
@@ -211,11 +223,15 @@ final class ItemNormalizer extends AbstractItemNormalizer
     /**
      * Gets the IRI of the given relation.
      *
-     * @param array|string $rel
+     * @throws UnexpectedValueException
      */
     private function getRelationIri($rel): string
     {
-        return $rel['_links']['self']['href'] ?? $rel;
+        if (!(\is_array($rel) || \is_string($rel))) {
+            throw new UnexpectedValueException('Expected relation to be an IRI or array');
+        }
+
+        return \is_string($rel) ? $rel : $rel['_links']['self']['href'];
     }
 
     /**
@@ -223,7 +239,7 @@ final class ItemNormalizer extends AbstractItemNormalizer
      *
      * @return bool|string
      */
-    private function getHalCacheKey(string $format = null, array $context)
+    private function getHalCacheKey(?string $format, array $context)
     {
         try {
             return md5($format.serialize($context));

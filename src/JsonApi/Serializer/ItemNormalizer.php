@@ -16,14 +16,19 @@ namespace ApiPlatform\Core\JsonApi\Serializer;
 use ApiPlatform\Core\Api\IriConverterInterface;
 use ApiPlatform\Core\Api\OperationType;
 use ApiPlatform\Core\Api\ResourceClassResolverInterface;
-use ApiPlatform\Core\Exception\InvalidArgumentException;
 use ApiPlatform\Core\Exception\ItemNotFoundException;
 use ApiPlatform\Core\Metadata\Property\Factory\PropertyMetadataFactoryInterface;
 use ApiPlatform\Core\Metadata\Property\Factory\PropertyNameCollectionFactoryInterface;
 use ApiPlatform\Core\Metadata\Property\PropertyMetadata;
 use ApiPlatform\Core\Metadata\Resource\Factory\ResourceMetadataFactoryInterface;
 use ApiPlatform\Core\Serializer\AbstractItemNormalizer;
+use ApiPlatform\Core\Serializer\ContextTrait;
+use ApiPlatform\Core\Util\ClassInfoTrait;
 use Symfony\Component\PropertyAccess\PropertyAccessorInterface;
+use Symfony\Component\Serializer\Exception\LogicException;
+use Symfony\Component\Serializer\Exception\NotNormalizableValueException;
+use Symfony\Component\Serializer\Exception\RuntimeException;
+use Symfony\Component\Serializer\Exception\UnexpectedValueException;
 use Symfony\Component\Serializer\NameConverter\NameConverterInterface;
 use Symfony\Component\Serializer\Normalizer\DenormalizerInterface;
 use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
@@ -37,24 +42,24 @@ use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
  */
 final class ItemNormalizer extends AbstractItemNormalizer
 {
-    const FORMAT = 'jsonapi';
+    use ClassInfoTrait;
+    use ContextTrait;
+
+    public const FORMAT = 'jsonapi';
 
     private $componentsCache = [];
-    private $resourceMetadataFactory;
 
-    public function __construct(PropertyNameCollectionFactoryInterface $propertyNameCollectionFactory, PropertyMetadataFactoryInterface $propertyMetadataFactory, IriConverterInterface $iriConverter, ResourceClassResolverInterface $resourceClassResolver, PropertyAccessorInterface $propertyAccessor = null, NameConverterInterface $nameConverter = null, ResourceMetadataFactoryInterface $resourceMetadataFactory, array $defaultContext = [])
+    public function __construct(PropertyNameCollectionFactoryInterface $propertyNameCollectionFactory, PropertyMetadataFactoryInterface $propertyMetadataFactory, IriConverterInterface $iriConverter, ResourceClassResolverInterface $resourceClassResolver, ?PropertyAccessorInterface $propertyAccessor, ?NameConverterInterface $nameConverter, ResourceMetadataFactoryInterface $resourceMetadataFactory, array $defaultContext = [], iterable $dataTransformers = [])
     {
-        parent::__construct($propertyNameCollectionFactory, $propertyMetadataFactory, $iriConverter, $resourceClassResolver, $propertyAccessor, $nameConverter, null, null, false, $defaultContext);
-
-        $this->resourceMetadataFactory = $resourceMetadataFactory;
+        parent::__construct($propertyNameCollectionFactory, $propertyMetadataFactory, $iriConverter, $resourceClassResolver, $propertyAccessor, $nameConverter, null, null, false, $defaultContext, $dataTransformers, $resourceMetadataFactory);
     }
 
     /**
      * {@inheritdoc}
      */
-    public function supportsNormalization($data, $format = null)
+    public function supportsNormalization($data, $format = null, array $context = []): bool
     {
-        return self::FORMAT === $format && parent::supportsNormalization($data, $format);
+        return self::FORMAT === $format && parent::supportsNormalization($data, $format, $context);
     }
 
     /**
@@ -62,66 +67,75 @@ final class ItemNormalizer extends AbstractItemNormalizer
      */
     public function normalize($object, $format = null, array $context = [])
     {
+        if (null !== $outputClass = $this->getOutputClass($this->getObjectClass($object), $context)) {
+            return parent::normalize($object, $format, $context);
+        }
+
         if (!isset($context['cache_key'])) {
             $context['cache_key'] = $this->getJsonApiCacheKey($format, $context);
         }
 
-        // Get and populate attributes data
-        $objectAttributesData = parent::normalize($object, $format, $context);
+        // Use resolved resource class instead of given resource class to support multiple inheritance child types
+        $resourceClass = $this->resourceClassResolver->getResourceClass($object, $context['resource_class'] ?? null, true);
+        $context = $this->initContext($resourceClass, $context);
+        $iri = $this->iriConverter->getIriFromItem($object);
+        $context['iri'] = $iri;
+        $context['api_normalize'] = true;
 
-        if (!\is_array($objectAttributesData)) {
-            return $objectAttributesData;
+        $data = parent::normalize($object, $format, $context);
+        if (!\is_array($data)) {
+            return $data;
         }
 
-        // Get and populate item type
-        $resourceClass = $this->resourceClassResolver->getResourceClass($object, $context['resource_class'] ?? null, true);
         $resourceMetadata = $this->resourceMetadataFactory->create($resourceClass);
 
         // Get and populate relations
-        $components = $this->getComponents($object, $format, $context);
+        $allRelationshipsData = $this->getComponents($object, $format, $context)['relationships'];
         $populatedRelationContext = $context;
-        $objectRelationshipsData = $this->getPopulatedRelations($object, $format, $populatedRelationContext, $components['relationships']);
-        $objectRelatedResources = $this->getRelatedResources($object, $format, $context, $components['relationships']);
+        $relationshipsData = $this->getPopulatedRelations($object, $format, $populatedRelationContext, $allRelationshipsData);
+        $includedResourcesData = $this->getRelatedResources($object, $format, $context, $allRelationshipsData);
 
-        $item = [
-            'id' => $this->iriConverter->getIriFromItem($object),
+        $resourceData = [
+            'id' => $context['iri'],
             'type' => $resourceMetadata->getShortName(),
         ];
 
-        if ($objectAttributesData) {
-            $item['attributes'] = $objectAttributesData;
+        if ($data) {
+            $resourceData['attributes'] = $data;
         }
 
-        if ($objectRelationshipsData) {
-            $item['relationships'] = $objectRelationshipsData;
+        if ($relationshipsData) {
+            $resourceData['relationships'] = $relationshipsData;
         }
 
-        $data = ['data' => $item];
+        $document = ['data' => $resourceData];
 
-        if ($objectRelatedResources) {
-            $data['included'] = $objectRelatedResources;
+        if ($includedResourcesData) {
+            $document['included'] = $includedResourcesData;
         }
 
-        return $data;
+        return $document;
     }
 
     /**
      * {@inheritdoc}
      */
-    public function supportsDenormalization($data, $type, $format = null)
+    public function supportsDenormalization($data, $type, $format = null, array $context = []): bool
     {
-        return self::FORMAT === $format && parent::supportsDenormalization($data, $type, $format);
+        return self::FORMAT === $format && parent::supportsDenormalization($data, $type, $format, $context);
     }
 
     /**
      * {@inheritdoc}
+     *
+     * @throws NotNormalizableValueException
      */
     public function denormalize($data, $class, $format = null, array $context = [])
     {
         // Avoid issues with proxies if we populated the object
         if (!isset($context[self::OBJECT_TO_POPULATE]) && isset($data['data']['id'])) {
-            if (isset($context['api_allow_update']) && true !== $context['api_allow_update']) {
-                throw new InvalidArgumentException('Update is not allowed for this operation.');
+            if (true !== ($context['api_allow_update'] ?? true)) {
+                throw new NotNormalizableValueException('Update is not allowed for this operation.');
             }
 
             $context[self::OBJECT_TO_POPULATE] = $this->iriConverter->getItemFromIri(
@@ -130,7 +144,7 @@ final class ItemNormalizer extends AbstractItemNormalizer
             );
         }
 
-        // Merge attributes and relations previous to apply parents denormalizing
+        // Merge attributes and relationships, into format expected by the parent normalizer
         $dataToDenormalize = array_merge(
             $data['data']['attributes'] ?? [],
             $data['data']['relationships'] ?? []
@@ -147,7 +161,7 @@ final class ItemNormalizer extends AbstractItemNormalizer
     /**
      * {@inheritdoc}
      */
-    protected function getAttributes($object, $format = null, array $context)
+    protected function getAttributes($object, $format = null, array $context): array
     {
         return $this->getComponents($object, $format, $context)['attributes'];
     }
@@ -155,7 +169,7 @@ final class ItemNormalizer extends AbstractItemNormalizer
     /**
      * {@inheritdoc}
      */
-    protected function setAttributeValue($object, $attribute, $value, $format = null, array $context = [])
+    protected function setAttributeValue($object, $attribute, $value, $format = null, array $context = []): void
     {
         parent::setAttributeValue($object, $attribute, \is_array($value) && \array_key_exists('data', $value) ? $value['data'] : $value, $format, $context);
     }
@@ -164,8 +178,12 @@ final class ItemNormalizer extends AbstractItemNormalizer
      * {@inheritdoc}
      *
      * @see http://jsonapi.org/format/#document-resource-object-linkage
+     *
+     * @throws LogicException
+     * @throws RuntimeException
+     * @throws NotNormalizableValueException
      */
-    protected function denormalizeRelation(string $attributeName, PropertyMetadata $propertyMetadata, string $className, $value, string $format = null, array $context)
+    protected function denormalizeRelation(string $attributeName, PropertyMetadata $propertyMetadata, string $className, $value, ?string $format, array $context)
     {
         // Give a chance to other normalizers (e.g.: DateTimeNormalizer)
         if (!$this->resourceClassResolver->isResourceClass($className)) {
@@ -174,17 +192,17 @@ final class ItemNormalizer extends AbstractItemNormalizer
             if ($this->serializer instanceof DenormalizerInterface) {
                 return $this->serializer->denormalize($value, $className, $format, $context);
             }
-            throw new InvalidArgumentException(sprintf('The injected serializer must be an instance of "%s".', DenormalizerInterface::class));
+            throw new LogicException(sprintf('The injected serializer must be an instance of "%s".', DenormalizerInterface::class));
         }
 
         if (!\is_array($value) || !isset($value['id'], $value['type'])) {
-            throw new InvalidArgumentException('Only resource linkage supported currently, see: http://jsonapi.org/format/#document-resource-object-linkage.');
+            throw new NotNormalizableValueException('Only resource linkage supported currently, see: http://jsonapi.org/format/#document-resource-object-linkage.');
         }
 
         try {
             return $this->iriConverter->getItemFromIri($value['id'], $context + ['fetch_data' => true]);
         } catch (ItemNotFoundException $e) {
-            throw new InvalidArgumentException($e->getMessage(), $e->getCode(), $e);
+            throw new RuntimeException($e->getMessage(), $e->getCode(), $e);
         }
     }
 
@@ -192,8 +210,10 @@ final class ItemNormalizer extends AbstractItemNormalizer
      * {@inheritdoc}
      *
      * @see http://jsonapi.org/format/#document-resource-object-linkage
+     *
+     * @throws LogicException
      */
-    protected function normalizeRelation(PropertyMetadata $propertyMetadata, $relatedObject, string $resourceClass, string $format = null, array $context)
+    protected function normalizeRelation(PropertyMetadata $propertyMetadata, $relatedObject, string $resourceClass, ?string $format, array $context)
     {
         if (null === $relatedObject) {
             if (isset($context['operation_type'], $context['subresource_resources'][$resourceClass]) && OperationType::SUBRESOURCE === $context['operation_type']) {
@@ -204,37 +224,36 @@ final class ItemNormalizer extends AbstractItemNormalizer
                 if ($this->serializer instanceof NormalizerInterface) {
                     return $this->serializer->normalize($relatedObject, $format, $context);
                 }
-                throw new InvalidArgumentException(sprintf('The injected serializer must be an instance of "%s".', NormalizerInterface::class));
+                throw new LogicException(sprintf('The injected serializer must be an instance of "%s".', NormalizerInterface::class));
             }
         } else {
             $iri = $this->iriConverter->getIriFromItem($relatedObject);
+            $context['iri'] = $iri;
 
             if (isset($context['resources'])) {
                 $context['resources'][$iri] = $iri;
             }
             if (isset($context['api_included'])) {
-                $context['api_sub_level'] = true;
-
                 if (!$this->serializer instanceof NormalizerInterface) {
-                    throw new InvalidArgumentException(sprintf('The injected serializer must be an instance of "%s".', NormalizerInterface::class));
+                    throw new LogicException(sprintf('The injected serializer must be an instance of "%s".', NormalizerInterface::class));
                 }
-                $data = $this->serializer->normalize($relatedObject, $format, $context);
-                unset($context['api_sub_level']);
 
-                return $data;
+                return $this->serializer->normalize($relatedObject, $format, $context);
             }
         }
 
-        return ['data' => [
-            'type' => $this->resourceMetadataFactory->create($resourceClass)->getShortName(),
-            'id' => $iri,
-        ]];
+        return [
+            'data' => [
+                'type' => $this->resourceMetadataFactory->create($resourceClass)->getShortName(),
+                'id' => $iri,
+            ],
+        ];
     }
 
     /**
      * {@inheritdoc}
      */
-    protected function isAllowedAttribute($classOrObject, $attribute, $format = null, array $context = [])
+    protected function isAllowedAttribute($classOrObject, $attribute, $format = null, array $context = []): bool
     {
         return preg_match('/^\\w[-\\w_]*$/', $attribute) && parent::isAllowedAttribute($classOrObject, $attribute, $format, $context);
     }
@@ -243,12 +262,10 @@ final class ItemNormalizer extends AbstractItemNormalizer
      * Gets JSON API components of the resource: attributes, relationships, meta and links.
      *
      * @param object $object
-     *
-     * @return array
      */
-    private function getComponents($object, string $format = null, array $context)
+    private function getComponents($object, ?string $format, array $context): array
     {
-        $cacheKey = \get_class($object).'-'.$context['cache_key'];
+        $cacheKey = $this->getObjectClass($object).'-'.$context['cache_key'];
 
         if (isset($this->componentsCache[$cacheKey])) {
             return $this->componentsCache[$cacheKey];
@@ -308,9 +325,9 @@ final class ItemNormalizer extends AbstractItemNormalizer
      *
      * @param object $object
      *
-     * @throws InvalidArgumentException
+     * @throws UnexpectedValueException
      */
-    private function getPopulatedRelations($object, string $format = null, array $context, array $relationships): array
+    private function getPopulatedRelations($object, ?string $format, array $context, array $relationships): array
     {
         $data = [];
 
@@ -325,7 +342,7 @@ final class ItemNormalizer extends AbstractItemNormalizer
             $attributeValue = $this->getAttributeValue($object, $relationshipName, $format, $context);
 
             if ($this->nameConverter) {
-                $relationshipName = $this->nameConverter->normalize($relationshipName);
+                $relationshipName = $this->nameConverter->normalize($relationshipName, $context['resource_class'], self::FORMAT, $context);
             }
 
             if (!$attributeValue) {
@@ -347,7 +364,7 @@ final class ItemNormalizer extends AbstractItemNormalizer
             // Many to many relationship
             foreach ($attributeValue as $attributeValueElement) {
                 if (!isset($attributeValueElement['data'])) {
-                    throw new InvalidArgumentException(sprintf('The JSON API attribute \'%s\' must contain a "data" key.', $relationshipName));
+                    throw new UnexpectedValueException(sprintf('The JSON API attribute \'%s\' must contain a "data" key.', $relationshipName));
                 }
                 unset($attributeValueElement['data']['attributes']);
                 $data[$relationshipName]['data'][] = $attributeValueElement['data'];
@@ -360,7 +377,7 @@ final class ItemNormalizer extends AbstractItemNormalizer
     /**
      * Populates included keys.
      */
-    private function getRelatedResources($object, string $format = null, array $context, array $relationships): array
+    private function getRelatedResources($object, ?string $format, array $context, array $relationships): array
     {
         if (!isset($context['api_included'])) {
             return [];
@@ -402,7 +419,7 @@ final class ItemNormalizer extends AbstractItemNormalizer
      *
      * @return bool|string
      */
-    private function getJsonApiCacheKey(string $format = null, array $context)
+    private function getJsonApiCacheKey(?string $format, array $context)
     {
         try {
             return md5($format.serialize($context));

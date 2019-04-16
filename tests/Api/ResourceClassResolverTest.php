@@ -63,7 +63,7 @@ class ResourceClassResolverTest extends TestCase
         $resourceNameCollectionFactoryProphecy->create()->willReturn(new ResourceNameCollection([Dummy::class]))->shouldBeCalled();
 
         $resourceClassResolver = new ResourceClassResolver($resourceNameCollectionFactoryProphecy->reveal());
-        $resourceClass = $resourceClassResolver->getResourceClass($dummy, null);
+        $resourceClass = $resourceClassResolver->getResourceClass($dummy);
         $this->assertEquals($resourceClass, Dummy::class);
     }
 
@@ -105,7 +105,7 @@ class ResourceClassResolverTest extends TestCase
         $resourceNameCollectionFactoryProphecy->create()->willReturn(new ResourceNameCollection([Dummy::class]))->shouldBeCalled();
 
         $resourceClassResolver = new ResourceClassResolver($resourceNameCollectionFactoryProphecy->reveal());
-        $resourceClassResolver->getResourceClass(new \stdClass(), null);
+        $resourceClassResolver->getResourceClass(new \stdClass());
     }
 
     public function testGetResourceClassWithNoResourceClassName()
@@ -116,7 +116,7 @@ class ResourceClassResolverTest extends TestCase
         $resourceNameCollectionFactoryProphecy = $this->prophesize(ResourceNameCollectionFactoryInterface::class);
 
         $resourceClassResolver = new ResourceClassResolver($resourceNameCollectionFactoryProphecy->reveal());
-        $resourceClassResolver->getResourceClass(new \ArrayIterator([]), null);
+        $resourceClassResolver->getResourceClass(new \ArrayIterator([]));
     }
 
     public function testIsResourceClassWithIntendedClassName()
@@ -149,7 +149,7 @@ class ResourceClassResolverTest extends TestCase
         $resourceNameCollectionFactoryProphecy = $this->prophesize(ResourceNameCollectionFactoryInterface::class);
 
         $resourceClassResolver = new ResourceClassResolver($resourceNameCollectionFactoryProphecy->reveal());
-        $resourceClassResolver->getResourceClass(false, null);
+        $resourceClassResolver->getResourceClass(false);
     }
 
     public function testGetResourceClassWithResourceClassNameAndNoObject()
@@ -175,12 +175,12 @@ class ResourceClassResolverTest extends TestCase
 
     public function testGetResourceClassWithInterfaceResource()
     {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage("The given object's resource is the interface \"ApiPlatform\Core\Tests\Fixtures\DummyResourceInterface\", finding a class is not possible.");
         $dummy = new DummyResourceImplementation();
         $resourceNameCollectionFactoryProphecy = $this->prophesize(ResourceNameCollectionFactoryInterface::class);
-        $resourceNameCollectionFactoryProphecy->create()->willReturn(new ResourceNameCollection([DummyResourceInterface::class]))->shouldBeCalled();
 
         $resourceClassResolver = new ResourceClassResolver($resourceNameCollectionFactoryProphecy->reveal());
-        $resourceClass = $resourceClassResolver->getResourceClass($dummy, DummyResourceInterface::class, true);
-        $this->assertEquals(DummyResourceImplementation::class, $resourceClass);
+        $resourceClassResolver->getResourceClass($dummy, DummyResourceInterface::class, true);
     }
 }

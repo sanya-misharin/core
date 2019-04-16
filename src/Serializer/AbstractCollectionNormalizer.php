@@ -37,7 +37,7 @@ abstract class AbstractCollectionNormalizer implements NormalizerInterface, Norm
     /**
      * This constant must be overridden in the child class.
      */
-    const FORMAT = 'to-override';
+    public const FORMAT = 'to-override';
 
     protected $resourceClassResolver;
     protected $pageParameterName;
@@ -96,6 +96,8 @@ abstract class AbstractCollectionNormalizer implements NormalizerInterface, Norm
 
     /**
      * Normalizes a raw collection (not API resources).
+     *
+     * @param string|null $format
      */
     protected function normalizeRawCollection($object, $format = null, array $context = []): array
     {

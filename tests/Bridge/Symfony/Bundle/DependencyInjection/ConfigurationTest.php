@@ -42,7 +42,7 @@ class ConfigurationTest extends TestCase
      */
     private $processor;
 
-    public function setUp()
+    protected function setUp()
     {
         $this->configuration = new Configuration();
         $this->processor = new Processor();
@@ -293,7 +293,18 @@ class ConfigurationTest extends TestCase
             'api_platform' => [],
         ]);
 
-        $this->assertSame($config['title'], '');
-        $this->assertSame($config['description'], '');
+        $this->assertSame('', $config['title']);
+        $this->assertSame('', $config['description']);
+    }
+
+    public function testEnableElasticsearch()
+    {
+        $config = $this->processor->processConfiguration($this->configuration, [
+            'api_platform' => [
+                'elasticsearch' => true,
+            ],
+        ]);
+
+        $this->assertTrue($config['elasticsearch']['enabled']);
     }
 }

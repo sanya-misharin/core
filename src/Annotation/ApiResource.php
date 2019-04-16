@@ -31,22 +31,23 @@ use ApiPlatform\Core\Exception\InvalidArgumentException;
  *     @Attribute("denormalizationContext", type="array"),
  *     @Attribute("deprecationReason", type="string"),
  *     @Attribute("description", type="string"),
+ *     @Attribute("elasticsearch", type="bool"),
  *     @Attribute("fetchPartial", type="bool"),
  *     @Attribute("forceEager", type="bool"),
  *     @Attribute("formats", type="array"),
  *     @Attribute("filters", type="string[]"),
  *     @Attribute("graphql", type="array"),
  *     @Attribute("hydraContext", type="array"),
- *     @Attribute("inputClass", type="mixed"),
+ *     @Attribute("input", type="mixed"),
  *     @Attribute("iri", type="string"),
  *     @Attribute("itemOperations", type="array"),
  *     @Attribute("maximumItemsPerPage", type="int"),
  *     @Attribute("mercure", type="mixed"),
- *     @Attribute("messenger", type="bool"),
+ *     @Attribute("messenger", type="mixed"),
  *     @Attribute("normalizationContext", type="array"),
  *     @Attribute("openapiContext", type="array"),
  *     @Attribute("order", type="array"),
- *     @Attribute("outputClass", type="mixed"),
+ *     @Attribute("output", type="mixed"),
  *     @Attribute("paginationClientEnabled", type="bool"),
  *     @Attribute("paginationClientItemsPerPage", type="bool"),
  *     @Attribute("paginationClientPartial", type="bool"),
@@ -141,6 +142,13 @@ final class ApiResource
      *
      * @var bool
      */
+    private $elasticsearch;
+
+    /**
+     * @see https://github.com/Haehnchen/idea-php-annotation-plugin/issues/112
+     *
+     * @var bool
+     */
     private $fetchPartial;
 
     /**
@@ -188,7 +196,7 @@ final class ApiResource
     /**
      * @see https://github.com/Haehnchen/idea-php-annotation-plugin/issues/112
      *
-     * @var bool
+     * @var bool|string
      */
     private $messenger;
 
@@ -288,14 +296,14 @@ final class ApiResource
      *
      * @var string|false
      */
-    private $inputClass;
+    private $input;
 
     /**
      * @see https://github.com/Haehnchen/idea-php-annotation-plugin/issues/112
      *
      * @var string|false
      */
-    private $outputClass;
+    private $output;
 
     /**
      * @see https://github.com/Haehnchen/idea-php-annotation-plugin/issues/112

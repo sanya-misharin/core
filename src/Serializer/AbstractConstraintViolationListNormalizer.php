@@ -27,7 +27,7 @@ use Symfony\Component\Validator\ConstraintViolationListInterface;
  */
 abstract class AbstractConstraintViolationListNormalizer implements NormalizerInterface, CacheableSupportsMethodInterface
 {
-    const FORMAT = null; // Must be overrode
+    public const FORMAT = null; // Must be overrode
 
     private $serializePayloadFields;
     private $nameConverter;
@@ -59,8 +59,9 @@ abstract class AbstractConstraintViolationListNormalizer implements NormalizerIn
         $violations = $messages = [];
 
         foreach ($constraintViolationList as $violation) {
+            $class = \is_object($root = $violation->getRoot()) ? \get_class($root) : null;
             $violationData = [
-                'propertyPath' => $this->nameConverter ? $this->nameConverter->normalize($violation->getPropertyPath()) : $violation->getPropertyPath(),
+                'propertyPath' => $this->nameConverter ? $this->nameConverter->normalize($violation->getPropertyPath(), $class, static::FORMAT) : $violation->getPropertyPath(),
                 'message' => $violation->getMessage(),
             ];
 

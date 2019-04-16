@@ -47,17 +47,17 @@ final class DocumentationNormalizer implements NormalizerInterface, CacheableSup
 {
     use FilterLocatorTrait;
 
-    const FORMAT = 'json';
-    const BASE_URL = 'base_url';
-    const SPEC_VERSION = 'spec_version';
-    const OPENAPI_VERSION = '3.0.2';
-    const SWAGGER_DEFINITION_NAME = 'swagger_definition_name';
-    const SWAGGER_VERSION = '2.0';
+    public const FORMAT = 'json';
+    public const BASE_URL = 'base_url';
+    public const SPEC_VERSION = 'spec_version';
+    public const OPENAPI_VERSION = '3.0.2';
+    public const SWAGGER_DEFINITION_NAME = 'swagger_definition_name';
+    public const SWAGGER_VERSION = '2.0';
 
     /**
      * @deprecated
      */
-    const ATTRIBUTE_NAME = 'swagger_context';
+    public const ATTRIBUTE_NAME = 'swagger_context';
 
     private $resourceMetadataFactory;
     private $propertyNameCollectionFactory;
@@ -155,7 +155,8 @@ final class DocumentationNormalizer implements NormalizerInterface, CacheableSup
                 $serializerContext = $this->getSerializerContext(OperationType::SUBRESOURCE, false, $subResourceMetadata, $operationName);
 
                 $responseDefinitionKey = false;
-                if (false !== $outputClass = $subResourceMetadata->getSubresourceOperationAttribute($operationName, 'output_class')) {
+                $outputMetadata = $resourceMetadata->getTypedOperationAttribute(OperationType::SUBRESOURCE, $operationName, 'output', ['class' => $subresourceOperation['resource_class']], true);
+                if (null !== $outputClass = $outputMetadata['class'] ?? null) {
                     $responseDefinitionKey = $this->getDefinition($v3, $definitions, $subResourceMetadata, $subresourceOperation['resource_class'], $outputClass, $serializerContext);
                 }
 
@@ -203,7 +204,7 @@ final class DocumentationNormalizer implements NormalizerInterface, CacheableSup
                 $parametersMemory = [];
                 $pathOperation['parameters'] = [];
 
-                foreach ($subresourceOperation['identifiers'] as list($identifier, , $hasIdentifier)) {
+                foreach ($subresourceOperation['identifiers'] as [$identifier, , $hasIdentifier]) {
                     if (true === $hasIdentifier) {
                         $parameter = [
                             'name' => $identifier,
@@ -315,7 +316,8 @@ final class DocumentationNormalizer implements NormalizerInterface, CacheableSup
         $serializerContext = $this->getSerializerContext($operationType, false, $resourceMetadata, $operationName);
 
         $responseDefinitionKey = false;
-        if (false !== $outputClass = $resourceMetadata->getTypedOperationAttribute($operationType, $operationName, 'output_class', null, true)) {
+        $outputMetadata = $resourceMetadata->getTypedOperationAttribute($operationType, $operationName, 'output', ['class' => $resourceClass], true);
+        if (null !== $outputClass = $outputMetadata['class'] ?? null) {
             $responseDefinitionKey = $this->getDefinition($v3, $definitions, $resourceMetadata, $resourceClass, $outputClass, $serializerContext);
         }
 
@@ -423,7 +425,8 @@ final class DocumentationNormalizer implements NormalizerInterface, CacheableSup
         $pathOperation['summary'] ?? $pathOperation['summary'] = sprintf('Creates a %s resource.', $resourceShortName);
 
         $responseDefinitionKey = false;
-        if (false !== $outputClass = $resourceMetadata->getTypedOperationAttribute($operationType, $operationName, 'output_class', null, true)) {
+        $outputMetadata = $resourceMetadata->getTypedOperationAttribute($operationType, $operationName, 'output', ['class' => $resourceClass], true);
+        if (null !== $outputClass = $outputMetadata['class'] ?? null) {
             $responseDefinitionKey = $this->getDefinition($v3, $definitions, $resourceMetadata, $resourceClass, $outputClass, $this->getSerializerContext($operationType, false, $resourceMetadata, $operationName));
         }
 
@@ -445,7 +448,8 @@ final class DocumentationNormalizer implements NormalizerInterface, CacheableSup
             '404' => ['description' => 'Resource not found'],
         ];
 
-        if (false === $inputClass = $resourceMetadata->getTypedOperationAttribute($operationType, $operationName, 'input_class', null, true)) {
+        $inputMetadata = $resourceMetadata->getTypedOperationAttribute($operationType, $operationName, 'input', ['class' => $resourceClass], true);
+        if (null === $inputClass = $inputMetadata['class'] ?? null) {
             return $pathOperation;
         }
 
@@ -485,7 +489,8 @@ final class DocumentationNormalizer implements NormalizerInterface, CacheableSup
         $pathOperation['parameters'] ?? $pathOperation['parameters'] = [$parameter];
 
         $responseDefinitionKey = false;
-        if (false !== $outputClass = $resourceMetadata->getTypedOperationAttribute($operationType, $operationName, 'output_class', null, true)) {
+        $outputMetadata = $resourceMetadata->getTypedOperationAttribute($operationType, $operationName, 'output', ['class' => $resourceClass], true);
+        if (null !== $outputClass = $outputMetadata['class'] ?? null) {
             $responseDefinitionKey = $this->getDefinition($v3, $definitions, $resourceMetadata, $resourceClass, $outputClass, $this->getSerializerContext($operationType, false, $resourceMetadata, $operationName));
         }
 
@@ -504,7 +509,8 @@ final class DocumentationNormalizer implements NormalizerInterface, CacheableSup
             '404' => ['description' => 'Resource not found'],
         ];
 
-        if (false === $inputClass = $resourceMetadata->getTypedOperationAttribute($operationType, $operationName, 'input_class', null, true)) {
+        $inputMetadata = $resourceMetadata->getTypedOperationAttribute($operationType, $operationName, 'input', ['class' => $resourceClass], true);
+        if (null === $inputClass = $inputMetadata['class'] ?? null) {
             return $pathOperation;
         }
 
@@ -549,7 +555,7 @@ final class DocumentationNormalizer implements NormalizerInterface, CacheableSup
     private function getDefinition(bool $v3, \ArrayObject $definitions, ResourceMetadata $resourceMetadata, string $resourceClass, ?string $publicClass, array $serializerContext = null): string
     {
         $keyPrefix = $resourceMetadata->getShortName();
-        if (null !== $publicClass) {
+        if (null !== $publicClass && $resourceClass !== $publicClass) {
             $keyPrefix .= ':'.md5($publicClass);
         }
 
@@ -641,7 +647,7 @@ final class DocumentationNormalizer implements NormalizerInterface, CacheableSup
     /**
      * Gets the Swagger's type corresponding to the given PHP's type.
      */
-    private function getType(bool $v3, string $type, bool $isCollection, string $className = null, bool $readableLink = null, \ArrayObject $definitions, array $serializerContext = null): array
+    private function getType(bool $v3, string $type, bool $isCollection, ?string $className, ?bool $readableLink, \ArrayObject $definitions, array $serializerContext = null): array
     {
         if ($isCollection) {
             return ['type' => 'array', 'items' => $this->getType($v3, $type, false, $className, $readableLink, $definitions, $serializerContext)];
@@ -680,7 +686,7 @@ final class DocumentationNormalizer implements NormalizerInterface, CacheableSup
                 return [
                     '$ref' => sprintf(
                         $v3 ? '#/components/schemas/%s' : '#/definitions/%s',
-                        $this->getDefinition($v3, $definitions, $resourceMetadata = $this->resourceMetadataFactory->create($className), $className, $resourceMetadata->getAttribute('output_class'), $serializerContext)
+                        $this->getDefinition($v3, $definitions, $resourceMetadata = $this->resourceMetadataFactory->create($className), $className, $resourceMetadata->getAttribute('output')['class'] ?? $className, $serializerContext)
                     ),
                 ];
             }
@@ -867,7 +873,7 @@ final class DocumentationNormalizer implements NormalizerInterface, CacheableSup
     private function getLinkObject(string $resourceClass, string $operationId, string $path): array
     {
         $linkObject = $identifiers = [];
-        foreach ($this->propertyNameCollectionFactory->create($resourceClass, []) as $propertyName) {
+        foreach ($this->propertyNameCollectionFactory->create($resourceClass) as $propertyName) {
             $propertyMetadata = $this->propertyMetadataFactory->create($resourceClass, $propertyName);
             if (!$propertyMetadata->isIdentifier()) {
                 continue;

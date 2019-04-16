@@ -13,21 +13,31 @@ declare(strict_types=1);
 
 namespace ApiPlatform\Core\Tests\Fixtures\TestBundle\Entity;
 
-use ApiPlatform\Core\Annotation\ApiProperty;
 use ApiPlatform\Core\Annotation\ApiResource;
+use Doctrine\ORM\Mapping as ORM;
 
 /**
- * Dummy InputOutput.
- *
- * @author Kévin Dunglas <dunglas@gmail.com>
- *
- * @ApiResource(attributes={"input_class"=DummyInput::class, "output_class"=DummyOutput::class})
+ * @ApiResource
+ * @ORM\Entity
  */
-class DummyInputOutput
+class DummyPassenger
 {
     /**
-     * @var int The id
-     * @ApiProperty(identifier=true)
+     * @var int The entity Id
+     *
+     * @ORM\Id
+     * @ORM\GeneratedValue
+     * @ORM\Column(type="integer")
      */
-    public $id;
+    private $id;
+
+    /**
+     * @ORM\Column(type="string")
+     */
+    public $nickname;
+
+    public function getId()
+    {
+        return $this->id;
+    }
 }

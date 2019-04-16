@@ -21,7 +21,7 @@
         "symfony/http-kernel": "^3.4 || ^4.0",
         "symfony/property-access": "^3.4 || ^4.0",
         "symfony/property-info": "^3.4 || ^4.0",
-        "symfony/serializer": "^4.1",
+        "symfony/serializer": "^4.2",
         "symfony/web-link": "^4.1",
         "willdurand/negotiation": "^2.0.3"
     },
@@ -39,14 +39,18 @@
         "doctrine/mongodb-odm-bundle": "^4.0.0@beta",
         "doctrine/orm": "^2.6.3",
         "elasticsearch/elasticsearch": "^6.0",
-        "friendsofsymfony/user-bundle": "dev-fix-mongodb-mapping",
+        "friendsofsymfony/user-bundle": "^2.2@dev",
         "guzzlehttp/guzzle": "^6.0",
+        "jangregor/phpstan-prophecy": "^0.3",
         "justinrainbow/json-schema": "^5.0",
         "nelmio/api-doc-bundle": "^2.13.3",
-        "php-mock/php-mock-phpunit": "^2.0",
         "phpdocumentor/reflection-docblock": "^3.0 || ^4.0",
         "phpdocumentor/type-resolver": "^0.3 || ^0.4",
         "phpspec/prophecy": "^1.8",
+        "phpstan/phpstan": "^0.11.3",
+        "phpstan/phpstan-doctrine": "^0.11.2",
+        "phpstan/phpstan-phpunit": "^0.11",
+        "phpstan/phpstan-symfony": "^0.11.2",
         "phpunit/phpunit": "^7.5.2",
         "psr/log": "^1.0",
         "ramsey/uuid": "^3.7",
@@ -56,9 +60,11 @@
         "symfony/cache": "^3.4 || ^4.0",
         "symfony/config": "^3.4 || ^4.0",
         "symfony/console": "^3.4 || ^4.0",
+        "symfony/css-selector": "^3.4 || ^4.0",
         "symfony/debug": "^3.4 || ^4.0",
         "symfony/dependency-injection": "^3.4 || ^4.0",
         "symfony/doctrine-bridge": "^3.4 || ^4.0",
+        "symfony/dom-crawler": "^3.4 || ^4.0",
         "symfony/event-dispatcher": "^3.4 || ^4.0",
         "symfony/expression-language": "^3.4 || ^4.0",
         "symfony/finder": "^3.4 || ^4.0",
@@ -68,11 +74,11 @@
         "symfony/messenger": "^4.2",
         "symfony/phpunit-bridge": "^3.4.5 || ^4.0.5",
         "symfony/routing": "^3.4 || ^4.0",
-        "symfony/security": "^3.4 || ^4.0",
         "symfony/security-bundle": "^3.4 || ^4.0",
+        "symfony/security-core": "^3.4 || ^4.0",
         "symfony/twig-bundle": "^3.4 || ^4.0",
         "symfony/validator": "^3.4 || ^4.0",
-        "symfony/web-profiler-bundle": "^3.4 || ^4.0",
+        "symfony/web-profiler-bundle": "^4.2",
         "symfony/yaml": "^3.4 || ^4.0",
         "webonyx/graphql-php": ">=0.13 <1.0"
     },
@@ -109,12 +115,5 @@
     },
     "config": {
         "sort-packages": true
-    },
-    "repositories": [
-        {
-            "type": "vcs",
-            "url": "https://github.com/alanpoulain/FOSUserBundle",
-            "no-api": true
-        }
-    ]
+    }
 }

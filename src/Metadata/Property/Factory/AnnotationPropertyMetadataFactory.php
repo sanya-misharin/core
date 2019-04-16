@@ -88,7 +88,7 @@ final class AnnotationPropertyMetadataFactory implements PropertyMetadataFactory
      *
      * @throws PropertyNotFoundException
      */
-    private function handleNotFound(PropertyMetadata $parentPropertyMetadata = null, string $resourceClass, string $property): PropertyMetadata
+    private function handleNotFound(?PropertyMetadata $parentPropertyMetadata, string $resourceClass, string $property): PropertyMetadata
     {
         if (null !== $parentPropertyMetadata) {
             return $parentPropertyMetadata;
@@ -129,6 +129,6 @@ final class AnnotationPropertyMetadataFactory implements PropertyMetadataFactory
     {
         $wither = 'with'.ucfirst($property[1]);
 
-        return $propertyMetadata->$wither($value);
+        return $propertyMetadata->{$wither}($value);
     }
 }

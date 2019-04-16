@@ -39,7 +39,7 @@ final class CollectionNormalizer implements NormalizerInterface, NormalizerAware
     use JsonLdContextTrait;
     use NormalizerAwareTrait;
 
-    const FORMAT = 'jsonld';
+    public const FORMAT = 'jsonld';
 
     private $contextBuilder;
     private $resourceClassResolver;
@@ -62,6 +62,8 @@ final class CollectionNormalizer implements NormalizerInterface, NormalizerAware
 
     /**
      * {@inheritdoc}
+     *
+     * @param iterable $object
      */
     public function normalize($object, $format = null, array $context = [])
     {
@@ -117,7 +119,7 @@ final class CollectionNormalizer implements NormalizerInterface, NormalizerAware
     /**
      * Normalizes a raw collection (not API resources).
      */
-    private function normalizeRawCollection($object, $format = null, array $context = []): array
+    private function normalizeRawCollection(iterable $object, ?string $format, array $context): array
     {
         $data = [];
         foreach ($object as $index => $obj) {

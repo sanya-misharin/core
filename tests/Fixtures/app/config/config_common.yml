@@ -10,6 +10,13 @@ framework:
     form:                              ~ # For FOSUser
     templating:
         engines:                       ['twig'] # For Swagger UI
+    profiler:
+        enabled:                        true
+        collect:                        false
+
+web_profiler:
+    toolbar: true
+    intercept_redirects: false
 
 doctrine:
     dbal:
@@ -82,8 +89,6 @@ api_platform:
 parameters:
     container.autowiring.strict_mode: true
     container.dumper.inline_class_loader: true
-    # Enable the metadata cache to speedup the builds
-    api_platform.metadata_cache: true
 
 services:
     contain_non_resource.item_data_provider:
@@ -189,12 +194,6 @@ services:
         class: ApiPlatform\Core\Tests\Fixtures\TestBundle\Validator\DummyValidationGroupsGenerator
         public: true
 
-    app.dummy_input_data_persister:
-        class: ApiPlatform\Core\Tests\Fixtures\TestBundle\DataPersister\DummyInputDataPersister
-        public: false
-        tags:
-            -  { name: 'api_platform.data_persister' }
-
     mercure.hub.default.publisher:
         class: ApiPlatform\Core\Tests\Fixtures\DummyMercurePublisher
 
@@ -203,3 +202,45 @@ services:
         decorates: api_platform.swagger.normalizer.documentation
         public: false
         arguments: ['@app.serializer.normalizer.override_documentation.inner']
+
+    app.data_transformer.custom_input_dto:
+        class: 'ApiPlatform\Core\Tests\Fixtures\TestBundle\DataTransformer\CustomInputDtoDataTransformer'
+        public: false
+        tags:
+            -  { name: 'api_platform.data_transformer' }
+
+    app.data_transformer.custom_output_dto:
+        class: 'ApiPlatform\Core\Tests\Fixtures\TestBundle\DataTransformer\CustomOutputDtoDataTransformer'
+        public: false
+        tags:
+            -  { name: 'api_platform.data_transformer' }
+
+    app.data_transformer.input_dto:
+        class: 'ApiPlatform\Core\Tests\Fixtures\TestBundle\DataTransformer\InputDtoDataTransformer'
+        public: false
+        tags:
+            -  { name: 'api_platform.data_transformer' }
+
+    app.data_transformer.output_dto:
+        class: 'ApiPlatform\Core\Tests\Fixtures\TestBundle\DataTransformer\OutputDtoDataTransformer'
+        public: false
+        tags:
+            -  { name: 'api_platform.data_transformer' }
+
+    app.data_transformer.recover_password_input:
+        class: 'ApiPlatform\Core\Tests\Fixtures\TestBundle\DataTransformer\RecoverPasswordInputDataTransformer'
+        public: false
+        tags:
+            -  { name: 'api_platform.data_transformer' }
+
+    app.data_transformer.recover_password_output:
+        class: 'ApiPlatform\Core\Tests\Fixtures\TestBundle\DataTransformer\RecoverPasswordOutputDataTransformer'
+        public: false
+        tags:
+            -  { name: 'api_platform.data_transformer' }
+
+    app.messenger_handler.messenger_with_response:
+        class: 'ApiPlatform\Core\Tests\Fixtures\TestBundle\MessengerHandler\MessengerWithResponseHandler'
+        public: false
+        tags:
+            -  { name: 'messenger.message_handler' }
