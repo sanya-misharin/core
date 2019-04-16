@@ -118,13 +118,23 @@ final class ItemNormalizer extends BaseItemNormalizer
 
 		try {
 			$reflectionClass = new \ReflectionClass($class);
-			$property = $reflectionClass->getProperty('id');
+			$idProperty = $reflectionClass->getProperty('id');
+
+			// For audit entities
+			if ($reflectionClass->hasProperty('revision')) {
+				$revProperty = $reflectionClass->getProperty('revision');
+			}
 		} catch (\ReflectionException $e) {
 			return $originalObject;
 		}
 
-		$property->setAccessible(true);
-		$property->setValue($emptyObject, $property->getValue($originalObject));
+		$idProperty->setAccessible(true);
+		$idProperty->setValue($emptyObject, $idProperty->getValue($originalObject));
+
+		if (isset($revProperty)) {
+			$revProperty->setAccessible(true);
+			$revProperty->setValue($emptyObject, $revProperty->getValue($originalObject));
+		}
 
 		return $emptyObject;
 	}
