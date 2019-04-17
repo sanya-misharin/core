@@ -133,8 +133,8 @@ final class FilterEagerLoadingExtension implements ContextAwareQueryCollectionEx
         //Change join aliases
         foreach ($joinParts[$originAlias] as $joinPart) {
             /** @var Join $joinPart */
-            $joinString = \str_replace($aliases, $replacements, $joinPart->getJoin());
-            $pos = \strpos($joinString, '.');
+            $joinString = str_replace($aliases, $replacements, $joinPart->getJoin());
+            $pos = strpos($joinString, '.');
             if (false === $pos) {
                 if (null !== $joinPart->getCondition() && null !== $this->resourceClassResolver && $this->resourceClassResolver->isResourceClass($joinString)) {
                     $newAlias = $queryNameGenerator->generateJoinAlias($joinPart->getAlias());
@@ -156,7 +156,7 @@ final class FilterEagerLoadingExtension implements ContextAwareQueryCollectionEx
 	        QueryBuilderHelper::addJoinOnce($queryBuilderClone, $queryNameGenerator, $alias, $association, $joinPart->getJoinType(), $joinPart->getConditionType(), $condition, $originAlias, $newAlias);
         }
 
-        $queryBuilderClone->add('where', \str_replace($aliases, $replacements, (string) $wherePart));
+        $queryBuilderClone->add('where', str_replace($aliases, $replacements, (string) $wherePart));
 
         return $queryBuilderClone;
     }
