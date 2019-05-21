@@ -1,12 +1,15 @@
-Feature: DTO input and output
+Feature: JSON-LD DTO input and output
   In order to use a hypermedia API
   As a client software developer
   I need to be able to use DTOs on my resources as Input or Output objects.
 
+  Background:
+    Given I add "Accept" header equal to "application/ld+json"
+    And I add "Content-Type" header equal to "application/ld+json"
+
   @createSchema
   Scenario: Create a resource with a custom Input
-    When I add "Content-Type" header equal to "application/ld+json"
-    And I send a "POST" request to "/dummy_dto_customs" with body:
+    When I send a "POST" request to "/dummy_dto_customs" with body:
     """
     {
       "foo": "test",
@@ -82,21 +85,19 @@ Feature: DTO input and output
 
   @createSchema
   Scenario: Create a DummyDtoCustom object without output
-    When I add "Content-Type" header equal to "application/ld+json"
-    And I send a "POST" request to "/dummy_dto_custom_post_without_output" with body:
+    When I send a "POST" request to "/dummy_dto_custom_post_without_output" with body:
     """
     {
       "lorem": "test",
       "ipsum": "1"
     }
     """
-    Then the response status code should be 201
+    Then the response status code should be 204
     And the response should be empty
 
   @createSchema
   Scenario: Create and update a DummyInputOutput
-    When I add "Content-Type" header equal to "application/ld+json"
-    And I send a "POST" request to "/dummy_dto_input_outputs" with body:
+    When I send a "POST" request to "/dummy_dto_input_outputs" with body:
     """
     {
       "foo": "test",
@@ -121,7 +122,8 @@ Feature: DTO input and output
       "bat": "test"
     }
     """
-    When I add "Content-Type" header equal to "application/ld+json"
+    When I add "Accept" header equal to "application/ld+json"
+    And I add "Content-Type" header equal to "application/ld+json"
     And I send a "PUT" request to "/dummy_dto_input_outputs/1" with body:
     """
     {
@@ -151,8 +153,7 @@ Feature: DTO input and output
   @!mongodb
   @createSchema
   Scenario: Use DTO with relations on User
-    When I add "Content-Type" header equal to "application/ld+json"
-    And I send a "POST" request to "/users" with body:
+    When I send a "POST" request to "/users" with body:
     """
     {
       "username": "soyuka",
@@ -161,7 +162,8 @@ Feature: DTO input and output
     }
     """
     Then the response status code should be 201
-    When I add "Content-Type" header equal to "application/ld+json"
+    When I add "Accept" header equal to "application/ld+json"
+    And I add "Content-Type" header equal to "application/ld+json"
     And I send a "PUT" request to "/users/recover/1" with body:
     """
     {
@@ -184,16 +186,11 @@ Feature: DTO input and output
     """
 
   @createSchema
-  Scenario: Retrieve an Output with GraphQl
-    When I add "Content-Type" header equal to "application/ld+json"
-    And I send a "POST" request to "/dummy_dto_input_outputs" with body:
-    """
-    {
-      "foo": "test",
-      "bar": 1
-    }
-    """
+  Scenario: Create a resource with no input
+    When I send a "POST" request to "/dummy_dto_no_inputs"
     Then the response status code should be 201
+    And the response should be in JSON
+    And the header "Content-Type" should be equal to "application/ld+json; charset=utf-8"
     And the JSON should be equal to:
     """
     {
@@ -204,51 +201,39 @@ Feature: DTO input and output
         "baz": "OutputDto/baz",
         "bat": "OutputDto/bat"
       },
-      "@type": "DummyDtoInputOutput",
-      "@id": "/dummy_dto_input_outputs/1",
+      "@type": "DummyDtoNoInput",
+      "@id": "/dummy_dto_no_inputs/1",
       "id": 1,
       "baz": 1,
       "bat": "test"
     }
     """
-    When I send the following GraphQL request:
-    """
-    {
-      dummyDtoInputOutput(id: "/dummy_dto_input_outputs/1") {
-        _id, id, baz
-      }
-    }
-    """
+
+  Scenario: Update a resource with no input
+    When I send a "POST" request to "/dummy_dto_no_inputs/1/double_bat"
     Then the response status code should be 200
+    And the response should be in JSON
+    And the header "Content-Type" should be equal to "application/ld+json; charset=utf-8"
     And the JSON should be equal to:
     """
     {
-      "data": {
-        "dummyDtoInputOutput": {
-          "_id": 1,
-          "id": "/dummy_dto_input_outputs/1",
-          "baz": 1
-        }
-      }
+      "@context": {
+        "@vocab": "http://example.com/docs.jsonld#",
+        "hydra": "http://www.w3.org/ns/hydra/core#",
+        "id": "OutputDto/id",
+        "baz": "OutputDto/baz",
+        "bat": "OutputDto/bat"
+      },
+      "@type": "DummyDtoNoInput",
+      "@id": "/dummy_dto_no_inputs/1",
+      "id": 1,
+      "baz": 1,
+      "bat": "testtest"
     }
     """
-
-  @createSchema
-  Scenario: Create a resource with no input
-    When I add "Content-Type" header equal to "application/ld+json"
-    And I send a "POST" request to "/dummy_dto_no_inputs" with body:
-    """
-    {
-      "foo": "test",
-      "bar": 1
-    }
-    """
-    Then the response status code should be 201
-    And the response should be empty
 
   @!mongodb
   Scenario: Use messenger with an input where the handler gives a synchronous result
-    When I add "Content-Type" header equal to "application/ld+json"
     And I send a "POST" request to "/messenger_with_inputs" with body:
     """
     {
@@ -271,8 +256,7 @@ Feature: DTO input and output
 
   @!mongodb
   Scenario: Use messenger with an input where the handler gives a synchronous Response result
-    When I add "Content-Type" header equal to "application/ld+json"
-    And I send a "POST" request to "/messenger_with_responses" with body:
+    When I send a "POST" request to "/messenger_with_responses" with body:
     """
     {
       "var": "test"
@@ -285,31 +269,5 @@ Feature: DTO input and output
     """
     {
       "data": 123
-    }
-    """
-
-  @!mongodb
-  Scenario: Use messenger with graphql and an input where the handler gives a synchronous result
-    When I send the following GraphQL request:
-    """
-    mutation {
-      createMessengerWithInput(input: {var: "test"}) {
-        messengerWithInput { id, name }
-      }
-    }
-    """
-    Then the response status code should be 200
-    And the response should be in JSON
-    And the JSON should be equal to:
-    """
-    {
-      "data": {
-        "createMessengerWithInput": {
-          "messengerWithInput": {
-              "id": "/messenger_with_inputs/1",
-              "name": "test"
-          }
-        }
-      }
     }
     """
