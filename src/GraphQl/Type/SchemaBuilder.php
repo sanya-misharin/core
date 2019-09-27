@@ -47,6 +47,11 @@ final class SchemaBuilder implements SchemaBuilderInterface
 {
     use ClassInfoTrait;
 
+    public const INTERFACE_POSTFIX = 'Interface';
+    public const ITEM_POSTFIX = 'Item';
+    public const COLLECTION_POSTFIX = 'Collection';
+    public const DATA_POSTFIX = 'Data';
+
     private $propertyNameCollectionFactory;
     private $propertyMetadataFactory;
     private $resourceNameCollectionFactory;
@@ -86,6 +91,10 @@ final class SchemaBuilder implements SchemaBuilderInterface
                 if ('query' === $operationName) {
                     $queryFields += $this->getQueryFields($resourceClass, $resourceMetadata);
 
+                    continue;
+                }
+
+                if ($resourceMetadata->getInterface()) {
                     continue;
                 }
 
@@ -353,12 +362,12 @@ final class SchemaBuilder implements SchemaBuilderInterface
             case Type::BUILTIN_TYPE_STRING:
                 $graphqlType = GraphQLType::string();
                 break;
-	        case Type::BUILTIN_TYPE_ARRAY:
-	        case Type::BUILTIN_TYPE_ITERABLE:
-	        if (!$this->isArrayOfObjects($type)) {
-			        $graphqlType = $this->graphqlTypes['Iterable'];
-			        break;
-		        }
+            case Type::BUILTIN_TYPE_ARRAY:
+            case Type::BUILTIN_TYPE_ITERABLE:
+                if (!$this->isArrayOfObjects($type)) {
+                    $graphqlType = $this->graphqlTypes['Iterable'];
+                    break;
+                }
             case Type::BUILTIN_TYPE_OBJECT:
                 if (($input && $depth > 0) || is_a($type->getClassName(), \DateTimeInterface::class, true)) {
                     $graphqlType = GraphQLType::string();
@@ -393,19 +402,19 @@ final class SchemaBuilder implements SchemaBuilderInterface
         return $type->isNullable() || (null !== $mutationName && 'update' === $mutationName) ? $graphqlType : GraphQLType::nonNull($graphqlType);
     }
 
-	/**
-	 * Necessary to determine that we are working with array of custom objects.
-	 *
-	 * @param Type $type
-	 *
-	 * @return bool
-	 */
-	private function isArrayOfObjects(Type $type): bool
-	{
-		return Type::BUILTIN_TYPE_ARRAY === $type->getBuiltinType() &&
-			$type->getCollectionValueType() &&
-			Type::BUILTIN_TYPE_OBJECT === $type->getCollectionValueType()->getBuiltinType();
-	}
+    /**
+     * Necessary to determine that we are working with array of custom objects.
+     *
+     * @param Type $type
+     *
+     * @return bool
+     */
+    private function isArrayOfObjects(Type $type): bool
+    {
+        return Type::BUILTIN_TYPE_ARRAY === $type->getBuiltinType() &&
+            $type->getCollectionValueType() &&
+            Type::BUILTIN_TYPE_OBJECT === $type->getCollectionValueType()->getBuiltinType();
+    }
 
     /**
      * Gets the object type of the given resource.
@@ -431,16 +440,68 @@ final class SchemaBuilder implements SchemaBuilderInterface
             $shortName .= 'Data';
         }
 
+        if ($resourceMetadata->getInterface()) {
+            $shortName .= self::INTERFACE_POSTFIX;
+        }
+
         if (isset($this->graphqlTypes[$shortName])) {
             return $this->graphqlTypes[$shortName];
         }
 
-        $ioMetadata = $resourceMetadata->getGraphqlAttribute(null === $mutationName ? 'query' : $mutationName, $input ? 'input' : 'output', null, true);
+        $resourceObjectType = $resourceMetadata->getInterface()
+            ? $this->buildResourceInterfaceType($resourceClass, $shortName, $resourceMetadata, $input, 'query', $mutationName, $wrapped, $depth)
+            : $this->buildResourceObjectType($resourceClass, $shortName, $resourceMetadata, $input, 'query', $mutationName, $wrapped, $depth);
+        $this->graphqlTypes[$shortName] = $resourceObjectType;
+
+        return $resourceObjectType;
+//
+//
+//        $ioMetadata = $resourceMetadata->getGraphqlAttribute(null === $mutationName ? 'query' : $mutationName, $input ? 'input' : 'output', null, true);
+//        if (null !== $ioMetadata && \array_key_exists('class', $ioMetadata) && null !== $ioMetadata['class']) {
+//            $resourceClass = $ioMetadata['class'];
+//        }
+//
+//        $wrapData = !$wrapped && null !== $mutationName && !$input && $depth < 1;
+//
+//        $configuration = [
+//            'name' => $shortName,
+//            'description' => $resourceMetadata->getDescription(),
+//            'resolveField' => $this->defaultFieldResolver,
+//            'fields' => function () use ($resourceClass, $resourceMetadata, $input, $mutationName, $wrapData, $depth, $ioMetadata) {
+//                if ($wrapData) {
+//                    $queryNormalizationContext = $resourceMetadata->getGraphqlAttribute('query', 'normalization_context', [], true);
+//                    $mutationNormalizationContext = $resourceMetadata->getGraphqlAttribute($mutationName ?? '', 'normalization_context', [], true);
+//                    // Use a new type for the wrapped object only if there is a specific normalization context for the mutation.
+//                    // If not, use the query type in order to ensure the client cache could be used.
+//                    $useWrappedType = $queryNormalizationContext !== $mutationNormalizationContext;
+//
+//                    return [
+//                        lcfirst($resourceMetadata->getShortName()) => $useWrappedType ?
+//                            $this->getResourceObjectType($resourceClass, $resourceMetadata, $input, $mutationName, true, $depth) :
+//                            $this->getResourceObjectType($resourceClass, $resourceMetadata, $input, null, true, $depth),
+//                        'clientMutationId' => GraphQLType::string(),
+//                    ];
+//                }
+//
+//                return $this->getResourceObjectTypeFields($resourceClass, $resourceMetadata, $input, $mutationName, $depth, $ioMetadata);
+//            },
+//            'interfaces' => $wrapData ? [] : [$this->getNodeInterface()],
+//        ];
+//
+//        return $this->graphqlTypes[$shortName] = $input ? new InputObjectType($configuration) : new ObjectType($configuration);
+    }
+
+    private function buildResourceObjectType(?string $resourceClass, string $shortName, ResourceMetadata $resourceMetadata, bool $input, ?string $queryName, ?string $mutationName, bool $wrapped, int $depth)
+    {
+        $ioMetadata = $resourceMetadata->getGraphqlAttribute($mutationName ?? $queryName, $input ? 'input' : 'output', null, true);
         if (null !== $ioMetadata && \array_key_exists('class', $ioMetadata) && null !== $ioMetadata['class']) {
             $resourceClass = $ioMetadata['class'];
         }
 
         $wrapData = !$wrapped && null !== $mutationName && !$input && $depth < 1;
+        $interfaces = ($interface = $resourceMetadata->getImplements())
+            ? $this->getInterfaceTypes($interface)
+            : [];
 
         $configuration = [
             'name' => $shortName,
@@ -464,10 +525,56 @@ final class SchemaBuilder implements SchemaBuilderInterface
 
                 return $this->getResourceObjectTypeFields($resourceClass, $resourceMetadata, $input, $mutationName, $depth, $ioMetadata);
             },
-            'interfaces' => $wrapData ? [] : [$this->getNodeInterface()],
+            'interfaces' => $wrapData ? [] : \array_merge([$this->getNodeInterface()], $interfaces),
         ];
 
-        return $this->graphqlTypes[$shortName] = $input ? new InputObjectType($configuration) : new ObjectType($configuration);
+        return $input ? new InputObjectType($configuration) : new ObjectType($configuration);
+    }
+
+    private function buildResourceInterfaceType(?string $resourceClass, string $shortName, ResourceMetadata $resourceMetadata, bool $input, ?string $queryName, ?string $mutationName, bool $wrapped, int $depth): ?InterfaceType
+    {
+        static $fieldsBuilder;
+
+        $ioMetadata = $resourceMetadata->getGraphqlAttribute($mutationName ?? $queryName, $input ? 'input' : 'output', null, true);
+        if (null !== $ioMetadata && \array_key_exists('class', $ioMetadata) && null !== $ioMetadata['class']) {
+            $resourceClass = $ioMetadata['class'];
+        }
+
+        $wrapData = !$wrapped && null !== $mutationName && !$input && $depth < 1;
+
+        $fields = $this->getResourceObjectTypeFields($resourceClass, $resourceMetadata, $input, $mutationName, $depth, $ioMetadata);
+
+        $resourceInterface = new InterfaceType([
+            'name' => $shortName,
+            'description' => $resourceMetadata->getDescription(),
+            'fields' => $fields,
+            'resolveType' => function ($value, $context, $info) {
+                if (!isset($value[ItemNormalizer::ITEM_RESOURCE_CLASS_KEY])) {
+                    throw new \UnexpectedValueException('Resource class was not passed. Interface type can not be used.');
+                }
+
+                $shortName = (new \ReflectionClass($value[ItemNormalizer::ITEM_RESOURCE_CLASS_KEY]))->getShortName();
+
+                if (!isset($this->graphqlTypes[$shortName])) {
+                    throw new \UnexpectedValueException("Type with name \"$shortName\" can not be found");
+                }
+
+                $type = $this->graphqlTypes[$shortName];
+                if (!isset($type->config['interfaces'])) {
+                    throw new \UnexpectedValueException("Type \"$shortName\" doesn't implement any interface.");
+                }
+
+                foreach ($type->config['interfaces'] as $interface) {
+                    if ($interface === $info->returnType) {
+                        return $type;
+                    }
+                }
+
+                throw new \UnexpectedValueException("Type \"$type\" must implement interface $info->returnType");
+            },
+        ]);
+
+        return $resourceInterface;
     }
 
     /**
@@ -585,8 +692,25 @@ final class SchemaBuilder implements SchemaBuilderInterface
         return $this->graphqlTypes["{$shortName}Connection"] = new ObjectType($configuration);
     }
 
-	private function isCollection(Type $type): bool
-	{
-		return ($type->isCollection() && Type::BUILTIN_TYPE_OBJECT === $type->getBuiltinType()) || $this->isArrayOfObjects($type);
-	}
+    private function isCollection(Type $type): bool
+    {
+        return ($type->isCollection() && Type::BUILTIN_TYPE_OBJECT === $type->getBuiltinType()) || $this->isArrayOfObjects($type);
+    }
+
+    private function getInterfaceTypes(string $resourceClass): array
+    {
+        try {
+            $reflection = new \ReflectionClass($resourceClass);
+        } catch (\ReflectionException $e) {
+            throw new \UnexpectedValueException("Class $resourceClass can't be found.");
+        }
+
+        $itemTypeName = $reflection->getShortName().self::INTERFACE_POSTFIX;
+        $itemType = isset($this->graphqlTypes[$itemTypeName]) ? [$this->graphqlTypes[$itemTypeName]] : [];
+
+        $collectionTypeName = $reflection->getShortName().self::INTERFACE_POSTFIX.self::COLLECTION_POSTFIX;
+        $collectionType = isset($this->graphqlTypes[$collectionTypeName]) ? [$this->graphqlTypes[$collectionTypeName]] : [];
+
+        return \array_merge($itemType, $collectionType);
+    }
 }
