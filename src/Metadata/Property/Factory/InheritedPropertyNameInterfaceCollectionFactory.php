@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace ApiPlatform\Core\Metadata\Property\Factory;
 
+use ApiPlatform\Core\Exception\ResourceClassNotFoundException;
 use ApiPlatform\Core\Metadata\Property\PropertyNameCollection;
 use ApiPlatform\Core\Metadata\Resource\Factory\ResourceMetadataFactoryInterface;
 use ApiPlatform\Core\Metadata\Resource\Factory\ResourceNameCollectionFactoryInterface;
@@ -42,26 +43,28 @@ final class InheritedPropertyNameInterfaceCollectionFactory implements PropertyN
     {
         $propertyNames = [];
 
-        $resourceMetadata = $this->resourceMetadata->create($resourceClass);
-        // Inherited from parent
-        if ($this->decorated) {
-            // InheritedPropertyNameCollectionFactory doesnt work for interfaces
-            if (!$this->decorated instanceof InheritedPropertyNameCollectionFactory || !$resourceMetadata->isInterface()) {
-                foreach ($this->decorated->create($resourceClass, $options) as $propertyName) {
-                    $propertyNames[$propertyName] = (string) $propertyName;
-                }
-            }
+        try {
+            $resourceMetadata = $this->resourceMetadata->create($resourceClass);
+        } catch (ResourceClassNotFoundException $e) {
+            $resourceMetadata = null;
         }
 
-        if (!$resourceMetadata->isInterface()) {
-            return new PropertyNameCollection(array_values($propertyNames));
+        // Fallback to decorated factory
+        if (!isset($resourceMetadata) || !$resourceMetadata->isInterface()) {
+            return $this->decorated
+                ? $this->decorated->create($resourceClass, $options)
+                : new PropertyNameCollection(array_values($propertyNames));
+        }
+
+        // Inherited from parent
+        // InheritedPropertyNameCollectionFactory doesnt work for interfaces
+        if ($this->decorated && !($this->decorated instanceof InheritedPropertyNameCollectionFactory)) {
+            foreach ($this->decorated->create($resourceClass, $options) as $propertyName) {
+                $propertyNames[$propertyName] = (string) $propertyName;
+            }
         }
 
         foreach ($this->resourceNameCollectionFactory->create() as $knownResourceClass) {
-            if ($resourceClass === $knownResourceClass) {
-                continue;
-            }
-
             if (is_subclass_of($resourceClass, $knownResourceClass)) {
                 foreach ($this->create($knownResourceClass) as $propertyName) {
                     $propertyNames[$propertyName] = $propertyName;
