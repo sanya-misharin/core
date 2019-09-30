@@ -94,7 +94,7 @@ final class SchemaBuilder implements SchemaBuilderInterface
                     continue;
                 }
 
-                if ($resourceMetadata->getInterface()) {
+                if ($resourceMetadata->isInterface()) {
                     continue;
                 }
 
@@ -440,7 +440,7 @@ final class SchemaBuilder implements SchemaBuilderInterface
             $shortName .= 'Data';
         }
 
-        if ($resourceMetadata->getInterface()) {
+        if ($resourceMetadata->isInterface()) {
             $shortName .= self::INTERFACE_POSTFIX;
         }
 
@@ -448,7 +448,7 @@ final class SchemaBuilder implements SchemaBuilderInterface
             return $this->graphqlTypes[$shortName];
         }
 
-        $resourceObjectType = $resourceMetadata->getInterface()
+        $resourceObjectType = $resourceMetadata->isInterface()
             ? $this->buildResourceInterfaceType($resourceClass, $shortName, $resourceMetadata, $input, 'query', $mutationName, $wrapped, $depth)
             : $this->buildResourceObjectType($resourceClass, $shortName, $resourceMetadata, $input, 'query', $mutationName, $wrapped, $depth);
         $this->graphqlTypes[$shortName] = $resourceObjectType;
