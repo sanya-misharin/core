@@ -28,11 +28,16 @@ final class InheritedPropertyNameInterfaceCollectionFactory implements PropertyN
     private $resourceNameCollectionFactory;
     private $decorated;
     private $resourceMetadata;
+    private $propertyInfo;
 
-    public function __construct(ResourceNameCollectionFactoryInterface $resourceNameCollectionFactory, ResourceMetadataFactoryInterface $resourceMetadata, PropertyNameCollectionFactoryInterface $decorated = null)
+    public function __construct(ResourceNameCollectionFactoryInterface $resourceNameCollectionFactory,
+                                ResourceMetadataFactoryInterface $resourceMetadata,
+                                PropertyNameCollectionFactoryInterface $propertyInfo,
+                                PropertyNameCollectionFactoryInterface $decorated = null)
     {
         $this->resourceNameCollectionFactory = $resourceNameCollectionFactory;
         $this->decorated = $decorated;
+        $this->propertyInfo = $propertyInfo;
         $this->resourceMetadata = $resourceMetadata;
     }
 
@@ -57,10 +62,16 @@ final class InheritedPropertyNameInterfaceCollectionFactory implements PropertyN
         }
 
         // Inherited from parent
-        // InheritedPropertyNameCollectionFactory doesnt work for interfaces
-        if ($this->decorated && !($this->decorated instanceof InheritedPropertyNameCollectionFactory)) {
-            foreach ($this->decorated->create($resourceClass, $options) as $propertyName) {
-                $propertyNames[$propertyName] = (string) $propertyName;
+        if ($this->decorated) {
+            if ($this->decorated instanceof InheritedPropertyNameCollectionFactory) {
+                // InheritedPropertyNameCollectionFactory doesnt work for interfaces
+                foreach ($this->propertyInfo->create($resourceClass, $options) as $propertyName) {
+                    $propertyNames[$propertyName] = (string) $propertyName;
+                }
+            } else {
+                foreach ($this->decorated->create($resourceClass, $options) as $propertyName) {
+                    $propertyNames[$propertyName] = (string) $propertyName;
+                }
             }
         }
 
