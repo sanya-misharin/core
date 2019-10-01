@@ -565,7 +565,11 @@ final class SchemaBuilder implements SchemaBuilderInterface
                 }
 
                 foreach ($type->config['interfaces'] as $interface) {
-                    if ($interface === $info->returnType) {
+                    $returnType = $info->returnType instanceof WrappingType
+                        ? $info->returnType->getWrappedType()
+                        : $info->returnType;
+
+                    if ($interface === $returnType) {
                         return $type;
                     }
                 }
