@@ -533,8 +533,6 @@ final class SchemaBuilder implements SchemaBuilderInterface
 
     private function buildResourceInterfaceType(?string $resourceClass, string $shortName, ResourceMetadata $resourceMetadata, bool $input, ?string $queryName, ?string $mutationName, bool $wrapped, int $depth): ?InterfaceType
     {
-        static $fieldsBuilder;
-
         $ioMetadata = $resourceMetadata->getGraphqlAttribute($mutationName ?? $queryName, $input ? 'input' : 'output', null, true);
         if (null !== $ioMetadata && \array_key_exists('class', $ioMetadata) && null !== $ioMetadata['class']) {
             $resourceClass = $ioMetadata['class'];
@@ -542,12 +540,18 @@ final class SchemaBuilder implements SchemaBuilderInterface
 
         $wrapData = !$wrapped && null !== $mutationName && !$input && $depth < 1;
 
-        $fields = $this->getResourceObjectTypeFields($resourceClass, $resourceMetadata, $input, $mutationName, $depth, $ioMetadata);
-
         $resourceInterface = new InterfaceType([
             'name' => $shortName,
             'description' => $resourceMetadata->getDescription(),
-            'fields' => $fields,
+            'fields' => function () use ($resourceClass, $resourceMetadata, $input, $mutationName, $wrapData, $depth, $ioMetadata) {
+                if ($wrapData) {
+                    return [
+                        lcfirst($resourceMetadata->getShortName()) => $this->getResourceObjectType($resourceClass, $resourceMetadata, $input, null, true, $depth),
+                    ];
+                }
+
+                return $this->getResourceObjectTypeFields($resourceClass, $resourceMetadata, $input, $mutationName, $depth, $ioMetadata);
+            },
             'resolveType' => function ($value, $context, $info) {
                 if (!isset($value[ItemNormalizer::ITEM_RESOURCE_CLASS_KEY])) {
                     throw new \UnexpectedValueException('Resource class was not passed. Interface type can not be used.');
