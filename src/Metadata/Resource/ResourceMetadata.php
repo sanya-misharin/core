@@ -33,7 +33,7 @@ final class ResourceMetadata
     private $interface;
     private $implements;
 
-    public function __construct(string $shortName = null, string $description = null, string $iri = null, array $itemOperations = null, array $collectionOperations = null, array $attributes = null, array $subresourceOperations = null, array $graphql = null, bool $interface = null, string $implements = null)
+    public function __construct(string $shortName = null, string $description = null, string $iri = null, array $itemOperations = null, array $collectionOperations = null, array $attributes = null, array $subresourceOperations = null, array $graphql = null, bool $interface = null, array $implements = null)
     {
         $this->shortName = $shortName;
         $this->description = $description;
@@ -98,7 +98,7 @@ final class ResourceMetadata
         return $this->interface;
     }
 
-    public function getImplements(): ?string
+    public function getImplements(): ?array
     {
         return $this->implements;
     }
@@ -185,6 +185,8 @@ final class ResourceMetadata
      * Gets an item operation attribute, optionally fallback to a resource attribute.
      *
      * @param mixed|null $defaultValue
+     *
+     * @return mixed|null
      */
     public function getItemOperationAttribute(?string $operationName, string $key, $defaultValue = null, bool $resourceFallback = false)
     {
@@ -195,6 +197,8 @@ final class ResourceMetadata
      * Gets a subresource operation attribute, optionally fallback to a resource attribute.
      *
      * @param mixed|null $defaultValue
+     *
+     * @return mixed|null
      */
     public function getSubresourceOperationAttribute(?string $operationName, string $key, $defaultValue = null, bool $resourceFallback = false)
     {
@@ -309,6 +313,8 @@ final class ResourceMetadata
      * Gets an operation attribute, optionally fallback to a resource attribute.
      *
      * @param mixed|null $defaultValue
+     *
+     * @return mixed|null
      */
     private function findOperationAttribute(?array $operations, ?string $operationName, string $key, $defaultValue, bool $resourceFallback)
     {
