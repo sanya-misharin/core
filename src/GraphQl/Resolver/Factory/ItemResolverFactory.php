@@ -89,16 +89,16 @@ final class ItemResolverFactory implements ResolverFactoryInterface
             }
 
             ($this->securityStage)($resourceClass, $operationName, $resolverContext + [
-                    'extra_variables' => [
-                        'object' => $item,
-                    ],
-                ]);
+                'extra_variables' => [
+                    'object' => $item,
+                ],
+            ]);
             ($this->securityPostDenormalizeStage)($resourceClass, $operationName, $resolverContext + [
-                    'extra_variables' => [
-                        'object' => $item,
-                        'previous_object' => $this->clone($item),
-                    ],
-                ]);
+                'extra_variables' => [
+                    'object' => $item,
+                    'previous_object' => $this->clone($item),
+                ],
+            ]);
 
             return ($this->serializeStage)($item, $resourceClass, $operationName, $resolverContext);
         };
