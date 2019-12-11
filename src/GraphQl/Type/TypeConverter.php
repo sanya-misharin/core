@@ -61,8 +61,7 @@ final class TypeConverter implements TypeConverterInterface
             case Type::BUILTIN_TYPE_STRING:
                 return GraphQLType::string();
             case Type::BUILTIN_TYPE_ARRAY:
-                if ($type->getCollectionValueType() &&
-                    (null !== $collectionValue = $type->getCollectionValueType()) &&
+                if ((null !== $collectionValue = $type->getCollectionValueType()) &&
                     (Type::BUILTIN_TYPE_OBJECT === $collectionValue->getBuiltinType())
                 ) {
                     return $this->getResourceType($collectionValue, $input, $queryName, $mutationName, $depth);
