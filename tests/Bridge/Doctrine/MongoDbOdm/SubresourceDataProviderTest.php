@@ -111,6 +111,7 @@ class SubresourceDataProviderTest extends TestCase
 
         $classMetadataProphecy = $this->prophesize(ClassMetadata::class);
         $classMetadataProphecy->hasAssociation('relatedDummies')->willReturn(true)->shouldBeCalled();
+        $classMetadataProphecy->hasReference('relatedDummies')->willReturn(true)->shouldBeCalled();
 
         $managerProphecy->getClassMetadata(Dummy::class)->shouldBeCalled()->willReturn($classMetadataProphecy->reveal());
 
@@ -175,6 +176,7 @@ class SubresourceDataProviderTest extends TestCase
 
         $classMetadataProphecy = $this->prophesize(ClassMetadata::class);
         $classMetadataProphecy->hasAssociation('relatedDummies')->willReturn(true)->shouldBeCalled();
+        $classMetadataProphecy->hasReference('relatedDummies')->willReturn(true)->shouldBeCalled();
 
         $dummyManagerProphecy = $this->prophesize(DocumentManager::class);
         $dummyManagerProphecy->createAggregationBuilder(Dummy::class)->shouldBeCalled()->willReturn($dummyAggregationBuilder->reveal());
@@ -202,6 +204,7 @@ class SubresourceDataProviderTest extends TestCase
 
         $rClassMetadataProphecy = $this->prophesize(ClassMetadata::class);
         $rClassMetadataProphecy->hasAssociation('thirdLevel')->shouldBeCalled()->willReturn(true);
+        $rClassMetadataProphecy->hasReference('thirdLevel')->willReturn(true)->shouldBeCalled();
 
         $rDummyManagerProphecy = $this->prophesize(DocumentManager::class);
         $rDummyManagerProphecy->createAggregationBuilder(RelatedDummy::class)->shouldBeCalled()->willReturn($rAggregationBuilder->reveal());
@@ -254,6 +257,7 @@ class SubresourceDataProviderTest extends TestCase
 
         $classMetadataProphecy = $this->prophesize(ClassMetadata::class);
         $classMetadataProphecy->hasAssociation('ownedDummy')->willReturn(true)->shouldBeCalled();
+        $classMetadataProphecy->hasReference('ownedDummy')->willReturn(true)->shouldBeCalled();
 
         $managerProphecy->getClassMetadata(Dummy::class)->shouldBeCalled()->willReturn($classMetadataProphecy->reveal());
 
@@ -303,6 +307,7 @@ class SubresourceDataProviderTest extends TestCase
 
         $classMetadataProphecy = $this->prophesize(ClassMetadata::class);
         $classMetadataProphecy->hasAssociation('relatedDummies')->willReturn(true)->shouldBeCalled();
+        $classMetadataProphecy->hasReference('relatedDummies')->willReturn(true)->shouldBeCalled();
 
         $managerProphecy->getClassMetadata(Dummy::class)->shouldBeCalled()->willReturn($classMetadataProphecy->reveal());
 
