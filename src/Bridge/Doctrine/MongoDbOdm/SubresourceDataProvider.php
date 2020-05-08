@@ -45,6 +45,8 @@ final class SubresourceDataProvider implements SubresourceDataProviderInterface
     private $managerRegistry;
     private $collectionExtensions;
     private $itemExtensions;
+    private $embedStack = [];
+    private $embeddedAggregationBuilder = null;
 
     /**
      * @param AggregationCollectionExtensionInterface[] $collectionExtensions
@@ -128,9 +130,17 @@ final class SubresourceDataProvider implements SubresourceDataProviderInterface
             throw new RuntimeException(sprintf('The class metadata for "%s" must be an instance of "%s".', $identifierResourceClass, ClassMetadata::class));
         }
 
-        $aggregation = $manager->createAggregationBuilder($identifierResourceClass);
-        $normalizedIdentifiers = [];
+        if (!$classMetadata->isEmbeddedDocument) {
+            $this->embeddedAggregationBuilder = null;
+            $this->embedStack = [];
+        }
 
+        $aggregation = $this->embedStack[$previousAssociationProperty]
+            ?? $this->embeddedAggregationBuilder
+            ?? $manager->createAggregationBuilder($identifierResourceClass);
+        $this->embedStack[$previousAssociationProperty] = clone $aggregation;
+
+        $normalizedIdentifiers = [];
         if (isset($identifiers[$identifier])) {
             // if it's an array it's already normalized, the IdentifierManagerTrait is deprecated
             if ($context[IdentifierConverterInterface::HAS_IDENTIFIER_CONVERTER] ?? false) {
@@ -141,9 +151,21 @@ final class SubresourceDataProvider implements SubresourceDataProviderInterface
         }
 
         if ($classMetadata->hasAssociation($previousAssociationProperty)) {
-            $aggregation->lookup($previousAssociationProperty)->alias($previousAssociationProperty);
             foreach ($normalizedIdentifiers as $key => $value) {
                 $aggregation->match()->field($key)->equals($value);
+            }
+
+            if ($classMetadata->hasReference($previousAssociationProperty)) {
+                $aggregation->lookup($previousAssociationProperty)->alias($previousAssociationProperty);
+            } else { // hasEmbed
+                $aggregation
+                    ->unwind("$$previousAssociationProperty")
+                    ->replaceRoot("$$previousAssociationProperty")
+                ;
+
+                $this->embeddedAggregationBuilder = clone $aggregation;
+
+                return $aggregation;
             }
         } elseif ($classMetadata->isIdentifier($previousAssociationProperty)) {
             foreach ($normalizedIdentifiers as $key => $value) {
@@ -159,8 +181,8 @@ final class SubresourceDataProvider implements SubresourceDataProviderInterface
         $results = $aggregation->execute()->toArray();
         $in = array_reduce($results, function ($in, $result) use ($previousAssociationProperty) {
             return $in + array_map(function ($result) {
-                return $result['_id'];
-            }, $result[$previousAssociationProperty] ?? []);
+                    return $result['_id'];
+                }, $result[$previousAssociationProperty] ?? []);
         }, []);
         $previousAggregationBuilder->match()->field('_id')->in($in);
 
