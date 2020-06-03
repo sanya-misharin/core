@@ -23,6 +23,7 @@ use GraphQL\Type\Definition\Type as GraphQLType;
 use GraphQL\Type\Definition\WrappingType;
 use Psr\Container\ContainerInterface;
 use Symfony\Component\PropertyInfo\Type;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 /**
  * Builds the GraphQL types.
@@ -41,12 +42,14 @@ final class TypeBuilder implements TypeBuilderInterface
     private $typesContainer;
     private $defaultFieldResolver;
     private $fieldsBuilderLocator;
+    private $translator;
 
-    public function __construct(TypesContainerInterface $typesContainer, callable $defaultFieldResolver, ContainerInterface $fieldsBuilderLocator)
+    public function __construct(TypesContainerInterface $typesContainer, callable $defaultFieldResolver, ContainerInterface $fieldsBuilderLocator, TranslatorInterface $translator)
     {
         $this->typesContainer = $typesContainer;
         $this->defaultFieldResolver = $defaultFieldResolver;
         $this->fieldsBuilderLocator = $fieldsBuilderLocator;
+        $this->translator = $translator;
     }
 
     /**
@@ -227,7 +230,7 @@ final class TypeBuilder implements TypeBuilderInterface
 
         $configuration = [
             'name' => $shortName,
-            'description' => $resourceMetadata->getDescription(),
+            'description' => $this->translator->trans($resourceMetadata->getDescription()),
             'resolveField' => $this->defaultFieldResolver,
             'fields' => function () use ($resourceClass, $resourceMetadata, $input, $mutationName, $queryName, $wrapData, $depth, $ioMetadata) {
                 if ($wrapData) {
