@@ -21,7 +21,7 @@ use Symfony\Component\Validator\ConstraintViolationListInterface;
  *
  * @author Kévin Dunglas <dunglas@gmail.com>
  */
-final class ValidationException extends BaseValidationException
+class ValidationException extends BaseValidationException
 {
     private $constraintViolationList;
 
