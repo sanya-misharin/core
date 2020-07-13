@@ -117,6 +117,9 @@ final class TypeConverter implements TypeConverterInterface
             if (!\array_key_exists($queryName ?? $mutationName, $resourceMetadata->getGraphql() ?? [])) {
                 return null;
             }
+            if ('Node' === $resourceMetadata->getShortName()) {
+                throw new \UnexpectedValueException('A "Node" resource cannot be used with GraphQL because the type is already used by the Relay specification.');
+            }
         } catch (ResourceClassNotFoundException $e) {
             // Skip objects that are not resources for now
             return null;
