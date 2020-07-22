@@ -114,7 +114,7 @@ final class TypeConverter implements TypeConverterInterface
 
         try {
             $resourceMetadata = $this->resourceMetadataFactory->create($resourceClass);
-            if (!\array_key_exists($queryName ?? $mutationName, $resourceMetadata->getGraphql() ?? [])) {
+            if (null === $resourceMetadata->getGraphql()) {
                 return null;
             }
             if ('Node' === $resourceMetadata->getShortName()) {
