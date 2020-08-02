@@ -94,7 +94,6 @@ final class ItemDataProvider implements ItemDataProviderInterface, RestrictedDat
         try {
             $document = $this->client->get([
                 'index' => $documentMetadata->getIndex(),
-                'type' => $documentMetadata->getType(),
                 'id' => (string) $id,
             ]);
         } catch (Missing404Exception $e) {
